@@ -5,7 +5,7 @@ import {
   createRun,
   createScenario,
   getScenario,
-  structureOrder,
+  structureOrders,
   validateScenario,
 } from "@/lib/api";
 import type { OrderDraft } from "@/lib/api";
@@ -13,6 +13,7 @@ import { Alert, Header, OrderForm, Section, SourceBadge, StatusBadge } from "@/c
 import {
   formValuesFrom,
   nextOrderId,
+  orderFromDraft,
   orderFromForm,
   snapshotWithOrder,
 } from "@/lib/view/draft";
@@ -38,15 +39,21 @@ export default async function NewOrderPage({
   searchParams,
 }: {
   params: Promise<{ scenarioId: string }>;
-  searchParams: Promise<{ text?: string }>;
+  searchParams: Promise<{ text?: string; pick?: string }>;
 }) {
   const { scenarioId } = await params;
-  const { text } = await searchParams;
+  const { text, pick } = await searchParams;
 
   const scenario = await getScenario(scenarioId);
   const snapshot = scenario.input_snapshot;
 
-  const intake = text?.trim() ? await structureOrder(text, snapshot.as_of) : null;
+  // Batched, because one message routinely asks for several trailers. Without a
+  // model key it comes back as a single draft and says so.
+  const batch = text?.trim() ? await structureOrders(text, snapshot.as_of) : null;
+  const drafts = batch?.orders ?? [];
+  const picked = Math.min(Math.max(Number(pick ?? 0) || 0, 0), Math.max(drafts.length - 1, 0));
+  const intake = drafts[picked] ?? null;
+
   const draft: OrderDraft | null = intake?.order_draft ?? null;
   const evidenceByField = new Map(
     (intake?.field_evidence ?? []).map((e) => [e.field, e.source_text]),
@@ -55,6 +62,44 @@ export default async function NewOrderPage({
   const orderId = nextOrderId(snapshot);
 
   const base = `/scenarios/${encodeURIComponent(scenarioId)}`;
+  const withPick = (index: number) =>
+    `${base}/orders/new?text=${encodeURIComponent(text ?? "")}&pick=${index}`;
+
+  /**
+   * Add every draft the document asked for, in one derived scenario.
+   *
+   * Nothing here is reviewed field by field, which is the honest trade: a draft
+   * missing a weight lands as `확인 필요` exactly as ORD-006 does, and the
+   * screen says so rather than filling the gap. An operator who wants to check
+   * one first opens it in the form above.
+   */
+  async function addAll() {
+    "use server";
+
+    let derived = snapshot;
+    const added: string[] = [];
+
+    for (const entry of drafts) {
+      const order = orderFromDraft(entry.order_draft, derived);
+      derived = snapshotWithOrder(derived, order);
+      added.push(order.order_id);
+    }
+
+    const created = await createScenario({
+      scenario_name: `주문 ${added.length}건 추가 (${added.join(", ")})`,
+      as_of: scenario.as_of,
+      baseline_service_ids: [...scenario.baseline_service_ids],
+      policy_version: scenario.policy_version,
+      assumption_ids: [...scenario.assumption_ids],
+      input_snapshot: derived,
+      parent_scenario_id: scenario.scenario_id,
+    });
+
+    await validateScenario(created.scenario_id);
+    await createRun(created.scenario_id);
+
+    redirect(`/scenarios/${encodeURIComponent(created.scenario_id)}`);
+  }
 
   async function addOrder(formData: FormData) {
     "use server";
@@ -126,6 +171,55 @@ export default async function NewOrderPage({
               </span>
             </div>
           </form>
+
+          {drafts.length > 1 && (
+            <div className="mt-5 pt-5 border-t border-gray-100 flex flex-col gap-3">
+              <span className="text-xs text-gray-400">
+                이 문구에서 주문 {drafts.length}건을 읽었습니다
+                {batch?.truncated && " (더 있었지만 잘렸습니다)"}
+              </span>
+
+              <div className="flex flex-col gap-2">
+                {drafts.map((entry, index) => (
+                  <Link
+                    key={index}
+                    href={withPick(index)}
+                    className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-2 text-sm transition-colors ${
+                      index === picked
+                        ? "border-korail-blue bg-blue-50"
+                        : "border-gray-200 hover:border-korail-light"
+                    }`}
+                  >
+                    <span className="font-medium text-gray-900">{index + 1}번</span>
+                    <StatusBadge
+                      label={entry.input_state === "VALID" ? "유효" : "확인 필요"}
+                      size="sm"
+                    />
+                    <span className="text-xs text-gray-500">
+                      {filledFields(entry.order_draft)
+                        .map(({ field, value }) => `${fieldLabel(field)} ${value}`)
+                        .join(" · ") || "읽은 값 없음"}
+                    </span>
+                    {index === picked && (
+                      <span className="ml-auto text-xs text-korail-blue">아래 폼에 채워짐</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+
+              <form action={addAll}>
+                <button
+                  type="submit"
+                  className="h-10 px-5 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
+                >
+                  {drafts.length}건 모두 추가하고 편성
+                </button>
+              </form>
+              <span className="text-xs text-gray-400">
+                비어 있는 값은 채우지 않습니다 — 그 주문은 새 시나리오에서 확인 필요로 잡힙니다
+              </span>
+            </div>
+          )}
 
           {intake && (
             <div className="mt-5 pt-5 border-t border-gray-100 flex flex-col gap-4">

@@ -9,6 +9,7 @@ import type {
   DecisionRequest,
   ExplanationResult,
   ExportBundle,
+  QuestionResult,
   Run,
 } from "./types";
 
@@ -57,4 +58,22 @@ export async function getExportBundle(runId: string): Promise<ExportBundle> {
 
 export async function getExplanation(runId: string): Promise<ExplanationResult> {
   return apiGet<ExplanationResult>(`/v1/runs/${encodeURIComponent(runId)}/explanation`);
+}
+
+/**
+ * Ask one question about a solved run.
+ *
+ * A POST because the question is a body, not because anything is stored --
+ * nothing is. The answer may come back empty with `grounded: false`, which is
+ * the service withholding rather than failing: an answer naming something the
+ * run does not contain is worse than none, because the operator cannot tell it
+ * from a correct one.
+ */
+export async function askQuestion(
+  runId: string,
+  question: string,
+): Promise<QuestionResult> {
+  return apiPost<QuestionResult>(`/v1/runs/${encodeURIComponent(runId)}/questions`, {
+    question,
+  });
 }

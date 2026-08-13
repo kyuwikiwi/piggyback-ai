@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
+  askQuestion,
   CANONICAL_SOLVER_PARAMETERS,
   createAlternative,
   createRun,
@@ -84,7 +85,13 @@ export default async function ScenarioDashboard({
   searchParams,
 }: {
   params: Promise<{ scenarioId: string }>;
-  searchParams: Promise<{ run?: string; order?: string; altmiss?: string; altreason?: string }>;
+  searchParams: Promise<{
+    run?: string;
+    order?: string;
+    altmiss?: string;
+    altreason?: string;
+    q?: string;
+  }>;
 }) {
   const { scenarioId } = await params;
   const {
@@ -92,6 +99,7 @@ export default async function ScenarioDashboard({
     order: selectedOrderId,
     altmiss: alternativeMissFor,
     altreason: alternativeMissReason,
+    q: question,
   } = await searchParams;
 
   const scenario = await getScenario(scenarioId);
@@ -111,6 +119,12 @@ export default async function ScenarioDashboard({
 
   const idx = indexSnapshot(scenario.input_snapshot);
   const { snapshot } = idx;
+
+  // Asking is a POST because the question is a body, but nothing is stored, so
+  // the same question always gets the same treatment and the URL stays
+  // reloadable and shareable.
+  const answered =
+    runId && question?.trim() ? await askQuestion(runId, question.trim()) : null;
 
   const parentId = scenario.parent_scenario_id ?? null;
   const derived = siblings.filter((s) => s.parent_scenario_id === scenarioId);
@@ -278,7 +292,14 @@ export default async function ScenarioDashboard({
     const forRunId = String(formData.get("run_id") ?? "");
     // Checkboxes, so the operator can ask about one approved change at a time.
     const adjustments = formData.getAll("adjustments").map(String).filter(Boolean);
-    if (adjustments.length === 0) redirect(withOrder(orderId));
+    // Built inline rather than through the helper above. A server action closes
+    // over what it references and Next serialises that closure; a function
+    // caught in it is not serialisable, and the whole action fails at the point
+    // of use with an error about client components that names neither this line
+    // nor this form.
+    if (adjustments.length === 0) {
+      redirect(`${base}?order=${encodeURIComponent(orderId)}`);
+    }
 
     const outcome = await createAlternative(forRunId, orderId, adjustments);
 
@@ -348,6 +369,7 @@ export default async function ScenarioDashboard({
   const selected = rows.find((r) => r.orderId === selectedOrderId) ?? null;
   const selectedOrder = selected ? idx.orderById.get(selected.orderId) : undefined;
   const selectedAdjustments = permittedAdjustments(selectedOrder);
+  const selectedCard = selected ? cardByOrder.get(selected.orderId) : undefined;
   const movedOrderId = deltas.find((d) => d.after !== null)?.orderId ?? null;
 
   return (
@@ -705,6 +727,12 @@ export default async function ScenarioDashboard({
                         runId,
                         adjustments: selectedAdjustments,
                         label: "대안 검토",
+                        suggestion: selectedCard?.suggestion
+                          ? {
+                              types: selectedCard.suggested_adjustment_types ?? [],
+                              reason: selectedCard.suggestion,
+                            }
+                          : null,
                       }
                     : null
                 }
@@ -717,6 +745,74 @@ export default async function ScenarioDashboard({
             )}
           </div>
         </Section>
+        )}
+
+        {run && (
+          <Section
+            title="결과에 묻기"
+            accent="cyan"
+            headerRight={
+              <span className="text-xs text-gray-400">
+                답은 이 실행의 계산 결과에서만 나옵니다
+              </span>
+            }
+          >
+            <div className="flex flex-col gap-4">
+              {/* A GET form: asking stores nothing, so the question belongs in
+                  the URL where it can be reloaded and shared. */}
+              <form method="get" className="flex flex-wrap gap-3">
+                <input
+                  type="text"
+                  name="q"
+                  defaultValue={question ?? ""}
+                  maxLength={500}
+                  placeholder="예: 왜 ORD-004가 밀렸나요?"
+                  className="flex-1 min-w-[260px] h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-900"
+                />
+                <button
+                  type="submit"
+                  className="h-10 px-5 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:border-korail-blue hover:text-korail-blue"
+                >
+                  묻기
+                </button>
+              </form>
+
+              {answered && (
+                <div className="flex flex-col gap-2">
+                  {answered.grounded ? (
+                    <p className="text-sm text-gray-900 leading-7">{answered.answer}</p>
+                  ) : answered.source === "UNAVAILABLE" ? (
+                    <p className="text-sm text-gray-500 leading-7">{answered.answer}</p>
+                  ) : (
+                    // Withheld, not failed. The operator has to know the
+                    // difference between "no answer" and "an answer I can trust".
+                    <Alert type="warning">
+                      <strong className="text-gray-900">
+                        답변이 이 실행의 사실과 맞지 않아 표시하지 않았습니다.
+                      </strong>
+                      <br />
+                      <code className="text-xs font-mono">{answered.refused_reason}</code>
+                    </Alert>
+                  )}
+
+                  {answered.used_order_ids.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                      <span>참조한 주문</span>
+                      {answered.used_order_ids.map((orderId) => (
+                        <Link
+                          key={orderId}
+                          href={withOrder(orderId)}
+                          className="font-mono text-korail-blue hover:underline"
+                        >
+                          {orderId}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Section>
         )}
 
         {run && snapshot.services.length > snapshot.baseline_service_ids.length && (

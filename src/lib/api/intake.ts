@@ -1,7 +1,7 @@
 import "server-only";
 
 import { apiPost } from "./client";
-import type { IntakeResult } from "./types";
+import type { IntakeBatchResult, IntakeResult } from "./types";
 
 /**
  * Turn one free-text shipping request into an order draft.
@@ -22,4 +22,21 @@ import type { IntakeResult } from "./types";
  */
 export async function structureOrder(text: string, asOf: string): Promise<IntakeResult> {
   return apiPost<IntakeResult>("/v1/intake/orders", { text, as_of: asOf });
+}
+
+/**
+ * The same, for a document that asks for more than one order.
+ *
+ * A real request is one message about five trailers. Reading it as a single
+ * order keeps whichever one the model saw first and drops the rest silently,
+ * which is the wrong answer to a document that plainly asks for more.
+ *
+ * Without a model key there is no split to make, so one draft comes back and
+ * `source` says `RULE_BASED` rather than implying work that did not happen.
+ */
+export async function structureOrders(
+  text: string,
+  asOf: string,
+): Promise<IntakeBatchResult> {
+  return apiPost<IntakeBatchResult>("/v1/intake/order-batches", { text, as_of: asOf });
 }

@@ -74,7 +74,9 @@ export type TraceEvent = Schemas["TraceEvent"];
 export type ExplanationResult = Schemas["ExplanationResult"];
 export type ExplanationCard = Schemas["ExplanationCard"];
 export type IntakeResult = Schemas["IntakeResult"];
+export type IntakeBatchResult = Schemas["IntakeBatchResult"];
 export type OrderDraft = Schemas["OrderDraft"];
+export type QuestionResult = Schemas["QuestionResult"];
 
 // ─── 오류 ───
 export type ApiErrorBody = Schemas["Error"];

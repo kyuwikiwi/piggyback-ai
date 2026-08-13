@@ -63,6 +63,14 @@ export function OrderPanel({
     runId: string;
     adjustments: readonly string[];
     label: string;
+    /**
+     * What the generative layer proposes trying first, and why.
+     *
+     * A proposal only. The boxes it ticks are the ones the search will be sent,
+     * and the search may well come back with nothing -- which is the point:
+     * the model is allowed to be wrong here because the solver answers.
+     */
+    suggestion: { types: readonly string[]; reason: string } | null;
   } | null;
   /** Shown when nothing may be adjusted, so the absence has a reason. */
   blockedLabel: string | null;
@@ -131,6 +139,18 @@ export function OrderPanel({
               terminal was always asked about both at once, so the derived plan
               could not say which one was actually needed -- and the two cost
               very different conversations to arrange. */}
+          {search.suggestion && (
+            <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5 flex flex-col gap-1">
+              <span className="text-[10px] text-blue-700">제안</span>
+              <p className="text-[11px] text-gray-700 leading-5">{search.suggestion.reason}</p>
+              {/* Said plainly, because the box below is already ticked and an
+                  operator should know a model ticked it. */}
+              <span className="text-[10px] text-gray-400">
+                제안일 뿐이며, 실행 가능 여부는 솔버가 판정합니다
+              </span>
+            </div>
+          )}
+
           <fieldset className="flex flex-col gap-1">
             <legend className="text-[11px] text-gray-400 mb-1">시도할 변경</legend>
             {search.adjustments.map((adjustment) => (
@@ -139,7 +159,14 @@ export function OrderPanel({
                   type="checkbox"
                   name="adjustments"
                   value={adjustment}
-                  defaultChecked
+                  // Exactly the proposed set, which is usually one change: an
+                  // order approved for two is otherwise always asked about
+                  // both, and the derived plan cannot then say which was
+                  // needed. Where two genuinely have to travel together the
+                  // proposal says so and both are ticked.
+                  defaultChecked={
+                    search.suggestion ? search.suggestion.types.includes(adjustment) : true
+                  }
                   className="accent-korail-blue"
                 />
                 <span className="font-mono">{adjustment}</span>
