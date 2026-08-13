@@ -1,17 +1,60 @@
-//장면4- 대안 비교
+import Link from "next/link";
 
-"use client";
+import { createAlternative, getRun, getScenario } from "@/lib/api";
+import { Alert, CheckItem, Header, SceneNav, Section, StatusBadge } from "@/components/ui";
+import { formatTime } from "@/lib/view/format";
+import { reasonLabel } from "@/lib/view/reasons";
+import { buildAlternativeView, describeChange } from "@/lib/view/alternatives";
+import { indexSnapshot, permittedAdjustments } from "@/lib/view/snapshot";
 
-import { useState } from "react";
-import { altDetails, altNoResult, comparisonRows } from "@/lib/fixtures";
-import { Header, StatusBadge, Section, CheckItem, Alert, SceneNav } from "@/components/ui";
-import type { AltDetail } from "@/lib/fixtures";
+export const dynamic = "force-dynamic";
 
-const altTargets = ["ORD-005", "ORD-008"] as const;
+export default async function AlternativesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ scenarioId: string; runId: string }>;
+  searchParams: Promise<{ order?: string }>;
+}) {
+  const { scenarioId, runId } = await params;
+  const { order: selectedOrderId } = await searchParams;
 
-export default function AlternativesPage() {
-  const [selected, setSelected] = useState<string>("ORD-005");
-  const detail: AltDetail | undefined = altDetails[selected];
+  const run = await getRun(runId);
+  const scenario = await getScenario(run.scenario_id);
+  const idx = indexSnapshot(scenario.input_snapshot);
+
+  // Candidates are the orders the baseline could not place that carry an
+  // approval window. Without a window there is nothing permitted to try, and
+  // asking anyway would be a 409.
+  const candidates = run.order_outcomes
+    .filter((o) => o.assignment_state !== "ASSIGNED")
+    .map((o) => ({ outcome: o, adjustments: permittedAdjustments(idx.orderById.get(o.order_id)) }))
+    .filter((c) => c.adjustments.length > 0);
+
+  const blocked = run.order_outcomes.filter(
+    (o) =>
+      o.assignment_state !== "ASSIGNED" &&
+      o.input_state === "VALID" &&
+      permittedAdjustments(idx.orderById.get(o.order_id)).length === 0,
+  );
+
+  const selected = candidates.find((c) => c.outcome.order_id === selectedOrderId);
+
+  // The search runs only when an order is explicitly selected -- landing on the
+  // page does nothing. Each search derives a new scenario and run server-side
+  // (that is what P3 does), so revisiting this URL derives another; the ids
+  // shown below are the ones this view produced.
+  const outcome = selected
+    ? await createAlternative(runId, selected.outcome.order_id, selected.adjustments)
+    : null;
+
+  const view =
+    outcome?.found === true
+      ? buildAlternativeView(
+          outcome,
+          (await getScenario(outcome.alternative_scenario_id)).input_snapshot,
+        )
+      : null;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -20,131 +63,210 @@ export default function AlternativesPage() {
         <div className="bg-white px-6 pt-6 pb-4">
           <div className="max-w-[1060px] mx-auto">
             <h1 className="text-2xl font-bold text-gray-900">대안 비교</h1>
-            <p className="text-sm text-gray-500 mt-1">ORD-005 다음 운행, ORD-008 대체 터미널의 change_set</p>
+            <p className="text-sm text-gray-500 mt-1">
+              승인된 변경만 적용해 파생 시나리오를 계산합니다. 원안은 덮어쓰지 않습니다
+            </p>
           </div>
         </div>
-        <SceneNav />
+        <SceneNav scenarioId={scenarioId} runId={runId} />
       </header>
 
       <main className="max-w-[1060px] mx-auto px-6 py-8 flex flex-col gap-5">
-        <Section title="대안 가능 주문" accent="purple">
-          <div className="grid grid-cols-2 gap-3">
-            {altTargets.map((id) => {
-              const isSelected = id === selected;
-              const d = altDetails[id];
-              return (
-                <button key={id} onClick={() => setSelected(id)} className={`text-left rounded-xl p-4 border-2 transition-colors ${
-                  isSelected ? "bg-violet-50 border-violet-300" : "bg-white border-gray-200 hover:border-gray-300 cursor-pointer"
-                }`}>
-                  <div className="flex justify-between items-center mb-2">
-                    <code className="font-mono text-sm font-extrabold">{id}</code>
-                    <StatusBadge label="조건부 대안 있음" size="sm" />
-                  </div>
-                  <div className="text-xs text-gray-500">{d.altService}</div>
-                  <div className="text-[10px] text-violet-600 font-semibold mt-1">{d.changeType}</div>
-                </button>
-              );
-            })}
-          </div>
+        <Section title="대안을 검토할 주문" accent="blue">
+          {candidates.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              승인 범위가 열려 있는 미배정 주문이 없습니다.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {candidates.map(({ outcome: o, adjustments }) => {
+                const isSelected = o.order_id === selectedOrderId;
+                return (
+                  <Link
+                    key={o.order_id}
+                    href={`?order=${encodeURIComponent(o.order_id)}`}
+                    className={`rounded-xl border p-4 transition-colors ${
+                      isSelected
+                        ? "border-korail-blue bg-blue-50"
+                        : "border-gray-200 hover:border-korail-light"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <code className="font-mono font-bold text-gray-900">{o.order_id}</code>
+                      {o.display_label && <StatusBadge label={o.display_label} size="sm" />}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      기본안 탈락 사유 {reasonLabel(o.primary_reason_code) ?? "—"}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {adjustments.map((a) => (
+                        <span
+                          key={a}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-500 font-mono"
+                        >
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </Section>
 
-        <Section title="대안 불가 주문" accent="red">
-          <div className="flex flex-col gap-2">
-            {altNoResult.map((nr) => (
-              <div key={nr.orderId} className="flex items-center gap-4 px-5 py-3 rounded-lg border border-red-200 bg-red-50">
-                <code className="font-mono text-sm font-extrabold text-gray-900 w-20 shrink-0">{nr.orderId}</code>
-                <StatusBadge label="불가" size="sm" />
-                <span className="text-sm text-gray-500 flex-1">{nr.reason}</span>
-              </div>
-            ))}
-          </div>
-        </Section>
-
-        {detail && (
-          <div className="grid grid-cols-2 gap-5">
-            <Section title={`${detail.orderId} 기본안 → 대안`} accent="purple">
-              <div className="mb-5">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">기본안 탈락 사유</div>
-                <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-                  <code className="font-mono text-xs font-bold text-red-600">{detail.baseFail}</code>
-                  <div className="text-sm text-gray-600 mt-1.5">{detail.baseDesc}</div>
+        {blocked.length > 0 && (
+          <Section title="승인 범위가 없는 주문" accent="red">
+            <div className="flex flex-col gap-2">
+              {blocked.map((o) => (
+                <div key={o.order_id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <code className="font-mono font-medium text-gray-900">{o.order_id}</code>
+                  {o.display_label && <StatusBadge label={o.display_label} size="sm" />}
+                  <span className="text-gray-500">
+                    {reasonLabel(o.primary_reason_code) ?? "—"} · 완화하려면 금지된 변경이
+                    필요합니다
+                  </span>
                 </div>
-              </div>
-              <div className="mb-5">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">적용된 변경</div>
-                <div className="rounded-lg bg-violet-50 border border-violet-200 p-4">
-                  <div className="text-sm font-bold text-violet-700 mb-1.5">→ {detail.altService}</div>
-                  {detail.altTerminal && <div className="text-sm text-violet-600 mb-1.5">도착: {detail.altTerminal}</div>}
-                  <div className="text-sm text-gray-500 leading-7">출발 {detail.altDepart} · 도착 {detail.altArrive}<br />반입 마감 {detail.altCutoff}</div>
-                  <div className="mt-2"><code className="text-[10px] font-mono text-violet-500 bg-violet-100 px-2 py-0.5 rounded">{detail.changeType}</code></div>
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">납기 여유 변화</div>
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm font-bold text-red-600">{detail.slackBefore}</div>
-                  <span className="text-lg text-gray-400">→</span>
-                  <div className={`rounded-lg px-4 py-2 text-sm font-bold border ${
-                    detail.slackWarn ? "bg-amber-50 border-amber-200 text-amber-600" : "bg-emerald-50 border-emerald-200 text-emerald-600"
-                  }`}>{detail.slackAfter}</div>
-                </div>
-              </div>
-            </Section>
-
-            <Section title="대안 적합성 상세 검증" accent="green">
-              <div className="flex flex-col gap-2">
-                {detail.checks.map((c, i) => (
-                  <CheckItem key={i} icon={c.icon} label={c.label} detail={c.detail} status={c.status} />
-                ))}
-              </div>
-              <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-4">
-                <div className="text-sm font-bold text-emerald-600 mb-1">✓ 모든 하드 제약 통과</div>
-                <div className="text-xs text-gray-500">
-                  {detail.altService}에서 {detail.orderId}의 배정이 가능합니다.
-                  {detail.slackWarn && " 단, 납기 여유가 없으므로 지연 위험에 유의하세요."}
-                </div>
-              </div>
-            </Section>
-          </div>
+              ))}
+            </div>
+          </Section>
         )}
 
-        <Section title="기본안 vs 대안 비교" accent="blue">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b-2 border-gray-200">
-                {["항목", "기본안", "대안", "변경"].map((h) => (
-                  <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</th>
+        {outcome?.found === false && (
+          <Section title={`${outcome.order_id} 대안 검토 결과`} accent="amber">
+            <Alert type="warning">
+              <strong className="text-gray-900">허용 범위 안에 실행 가능한 대안이 없습니다.</strong>
+              <br />
+              사유 <code className="font-mono text-xs">{outcome.reason_code}</code> —{" "}
+              {reasonLabel(outcome.reason_code)}
+              {outcome.change_set.length > 0 && (
+                <>
+                  <br />
+                  시도한 변경:{" "}
+                  {outcome.change_set.map((c) => describeChange(c).text).join(", ")}
+                </>
+              )}
+            </Alert>
+          </Section>
+        )}
+
+        {outcome?.found === true && view && (
+          <>
+            <Section
+              title={`${view.orderId} 기본안 → 대안`}
+              accent="green"
+              headerRight={
+                <div className="flex items-center gap-2">
+                  <code className="text-xs font-mono text-gray-400">
+                    {outcome.alternative_run_id}
+                  </code>
+                  <span className="text-xs text-gray-400">검증</span>
+                  <StatusBadge label={view.validatorStatus} size="sm" />
+                </div>
+              }
+            >
+              <div className="flex flex-col gap-4">
+                <div>
+                  <div className="text-xs text-gray-400 mb-1.5">적용된 변경</div>
+                  <div className="flex flex-col gap-1.5">
+                    {outcome.change_set.map((change, i) => {
+                      const described = describeChange(change);
+                      return (
+                        <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="text-gray-900">{described.text}</span>
+                          <code className="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-500">
+                            {described.code}
+                          </code>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {view.serviceId && (
+                  <div className="text-sm text-gray-500">
+                    <code className="font-mono font-bold text-gray-900">{view.serviceId}</code>
+                    {view.slotId && (
+                      <>
+                        {" · 슬롯 "}
+                        <code className="font-mono">{view.slotId}</code>
+                      </>
+                    )}
+                    <br />
+                    출발 {formatTime(view.departureAt)} · 도착 {formatTime(view.arrivalAt)} · 반입
+                    마감 {formatTime(view.cutoffAt)}
+                    {view.destinationName && ` · 도착지 ${view.destinationName}`}
+                  </div>
+                )}
+              </div>
+            </Section>
+
+            <Section title="대안 적합성 상세 검증" accent="cyan">
+              <div className="flex flex-col gap-2">
+                {view.checks.map((check) => (
+                  <CheckItem
+                    key={check.label}
+                    icon={check.icon}
+                    label={check.label}
+                    detail={check.detail}
+                    status={check.status}
+                  />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonRows.map((row, i) => (
-                <tr key={i} className="border-b border-gray-100">
-                  <td className="px-3 py-3 font-semibold text-gray-900">{row.item}</td>
-                  <td className="px-3 py-3 text-gray-500">{row.base}</td>
-                  <td className="px-3 py-3 font-semibold text-violet-700">{row.alt}</td>
-                  <td className="px-3 py-3">
-                    <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full border ${
-                      row.diff.startsWith("+") ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : row.diff.startsWith("−") ? "bg-cyan-50 text-cyan-700 border-cyan-200"
-                      : "bg-gray-100 text-gray-500 border-gray-200"
-                    }`}>{row.diff}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
+              </div>
+              <p className="mt-4 text-xs text-gray-400">
+                각 항목은 대안 시나리오{" "}
+                <code className="font-mono">{outcome.alternative_scenario_id}</code>의 스냅샷에서
+                다시 계산한 값입니다.
+              </p>
+            </Section>
+
+            <Section title="기본안 대비 배정 변화" accent="purple">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
+                      <th className="py-2 pr-3 font-medium">주문</th>
+                      <th className="py-2 pr-3 font-medium">기본안</th>
+                      <th className="py-2 font-medium">대안</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outcome.assignment_deltas.map((delta) => (
+                      <tr key={delta.order_id} className="border-b border-gray-100">
+                        <td className="py-2.5 pr-3">
+                          <code className="font-mono font-medium text-gray-900">
+                            {delta.order_id}
+                          </code>
+                        </td>
+                        <td className="py-2.5 pr-3 text-gray-500">
+                          {delta.before_assignment
+                            ? `${delta.before_assignment.service_id} · ${delta.before_assignment.slot_id}`
+                            : "미배정"}
+                        </td>
+                        <td className="py-2.5 text-gray-500">
+                          {delta.after_assignment
+                            ? `${delta.after_assignment.service_id} · ${delta.after_assignment.slot_id}`
+                            : "미배정"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-sm text-gray-500">
+                영향 주문 {view.impactedOrderIds.length}건 —{" "}
+                <code className="font-mono">{view.impactedOrderIds.join(", ")}</code>
+              </p>
+            </Section>
+          </>
+        )}
 
         <Alert type="info">
-          <strong className="text-gray-900">핵심</strong> — 대안은 승인된 변경만 새 시나리오에서 계산하며, 원안을 덮어쓰지 않습니다.
+          <strong className="text-gray-900">핵심</strong> — 대안은 승인된 변경만 새 시나리오에서
+          계산하며, 원안을 덮어쓰지 않습니다. 중량·규격·경로 한도·납기를 바꾸는 변경은 정책이
+          금지하므로 요청 자체가 거부됩니다.
         </Alert>
       </main>
-
-      <footer className="max-w-[1060px] mx-auto px-6 py-4 flex justify-between text-xs text-gray-400">
-        <span>데모 가정 데이터 · 실제 운영 승인 기준이 아닙니다</span>
-        <span>DEMO_POLICY_V1 · 2026-08-13</span>
-      </footer>
     </div>
   );
 }

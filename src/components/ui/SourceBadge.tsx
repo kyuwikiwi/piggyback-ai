@@ -1,15 +1,13 @@
-import type { SourceType } from "@/types";
+import type { Assumption } from "@/lib/api";
+
+/** The vocabulary the contract allows on an assumption. */
+type SourceType = Assumption["source_type"];
 
 const sourceConfig: Record<SourceType, { label: string; icon: string; className: string }> = {
   PUBLIC_CONFIRMED: {
     label: "공개 확인",
     icon: "✓",
     className: "bg-emerald-50 text-emerald-600",
-  },
-  INSTITUTION_CONFIRMED: {
-    label: "기관 확인",
-    icon: "✓",
-    className: "bg-blue-50 text-blue-600",
   },
   INSTITUTION_CONFIRMATION_REQUIRED: {
     label: "기관 확인 필요",
@@ -20,11 +18,6 @@ const sourceConfig: Record<SourceType, { label: string; icon: string; className:
     label: "데모 가정",
     icon: "△",
     className: "bg-[#00afd5]/10 text-[#00afd5]",
-  },
-  DERIVED_RESULT: {
-    label: "계산 결과",
-    icon: "⚙",
-    className: "bg-gray-100 text-gray-500",
   },
 };
 

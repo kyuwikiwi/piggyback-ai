@@ -28,7 +28,7 @@ interface StatCardProps{
 
 export function StatCard({ value, label, color= "default", className= ""}: StatCardProps){
     return (
-        <div className={`flex-1 min-w-[90px] rounded-xl border border-grap-200 bg-white p-4 text-center ${className}`}>
+        <div className={`flex-1 min-w-[90px] rounded-xl border border-gray-200 bg-white p-4 text-center ${className}`}>
             <div className= {`text-4xl font-extrabold leading-none ${colorMap[color]}`}>
                 {value}
             </div>
