@@ -1,7 +1,7 @@
 # 계약 정본
 
 이 폴더의 `openapi.yaml`은 **이 저장소가 소유한 파일이 아니다.** 정본은
-[xiuiworld/piggyon](https://github.com/xiuiworld/piggyon)의 `docs/openapi.yaml`이고,
+[xiuiworld/piggyon_back](https://github.com/xiuiworld/piggyon_back)의 `docs/openapi.yaml`이고,
 여기 있는 건 복사본이다. 백엔드 `docs/01-requirements.md` §11이 그 파일을 계약
 정본으로 지정한다.
 

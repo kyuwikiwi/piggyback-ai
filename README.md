@@ -12,7 +12,7 @@
 ## 실행
 
 백엔드가 먼저 떠 있어야 한다 —
-[xiuiworld/piggyon](https://github.com/xiuiworld/piggyon):
+[xiuiworld/piggyon_back](https://github.com/xiuiworld/piggyon_back):
 
 ```bash
 uvicorn app.main:app --port 8000
