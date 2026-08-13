@@ -160,7 +160,8 @@ export default async function AlternativesPage({
                   <code className="text-xs font-mono text-gray-400">
                     {outcome.alternative_run_id}
                   </code>
-                  <StatusBadge label={`검증 ${view.validatorStatus}`} size="sm" />
+                  <span className="text-xs text-gray-400">검증</span>
+                  <StatusBadge label={view.validatorStatus} size="sm" />
                 </div>
               }
             >

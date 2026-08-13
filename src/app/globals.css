@@ -19,6 +19,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-poppins);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,5 +32,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Was `Arial, Helvetica, sans-serif`, which overrode the Geist variables the
+     layout sets up, so `font-sans` never took effect anywhere. */
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

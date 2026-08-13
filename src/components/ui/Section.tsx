@@ -31,7 +31,7 @@ interface SectionProps{
 
 export function Section({title, accent, headerRight, children, className= ""}: SectionProps){
     return (
-        <div className={`rounded-xl border border-grap-200 bg-white overflow-hidden ${className}`}>
+        <div className={`rounded-xl border border-gray-200 bg-white overflow-hidden ${className}`}>
             {title &&(
                 <div className= "flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div className="flex items-center gap-2.5">

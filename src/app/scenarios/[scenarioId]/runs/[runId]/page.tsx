@@ -2,7 +2,7 @@ import { getExplanation, getRun, getScenario } from "@/lib/api";
 import { Alert, Header, SceneNav, Section, StatCard, StatusBadge } from "@/components/ui";
 import { formatTime, formatTonnes } from "@/lib/view/format";
 import { reasonLabel } from "@/lib/view/reasons";
-import { indexSnapshot, slotsOfService, terminalName, wagonsOfService } from "@/lib/view/snapshot";
+import { indexSnapshot, terminalName, wagonsOfService } from "@/lib/view/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +62,8 @@ export default async function RunPage({
             <div className="flex items-center gap-2">
               <code className="text-xs font-mono text-gray-400">{run.run_id}</code>
               <StatusBadge label={run.solver_status} size="sm" />
-              <StatusBadge label={`검증 ${run.validator_status}`} size="sm" />
+              <span className="text-xs text-gray-400">검증</span>
+              <StatusBadge label={run.validator_status} size="sm" />
             </div>
           }
         >

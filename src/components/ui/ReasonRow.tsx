@@ -8,11 +8,11 @@
 
 const severityStyles={
     warning:{
-        container:"bg-amber-50 border-1-amber-500",
+        container:"bg-amber-50 border-amber-500",
         code: "text-amber-600",
     },
     error: {
-        container:"bg-red-50 border-1-red-500",
+        container:"bg-red-50 border-red-500",
         code: "text-red-600",
     },
 } as const;
@@ -31,7 +31,7 @@ export function ReasonRow({ code, message, severity= "warning", className=""}: R
 
    return (
     <div
-        className={`flex items-start gap-3 rounded-log border-l-4 px-4 py-3 ${styles.container} ${className}`}
+        className={`flex items-start gap-3 rounded-lg border-l-4 px-4 py-3 ${styles.container} ${className}`}
         >
             <code className={`shrink-0 mt-0.5 font-mono text-xs font-bold ${styles.code}`}>
                 {code}
