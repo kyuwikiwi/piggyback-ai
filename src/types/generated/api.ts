@@ -214,6 +214,8 @@ export interface paths {
         /**
          * Operator-facing cards for a solved run (P4b)
          * @description Sentences over an already-decided run. Cards naming an order, id or reason the run does not contain, or making a claim 08 §8 forbids, are replaced by their template and listed in replaced_reasons.
+         *
+         *     Generated once and stored against the run, which is immutable once solved. Generating per read put two model calls in front of every render and let the wording drift between views of the same plan. The alternative search moves an order's alternative axis, so it clears the stored copy and the next read rebuilds it.
          */
         get: operations["getRunExplanation"];
         put?: never;
@@ -618,6 +620,8 @@ export interface components {
             validation_result: components["schemas"]["ValidationResult"];
             decisions: components["schemas"]["Decision"][];
             trace_events: components["schemas"]["TraceEvent"][];
+            /** @description The stored explanation for this run — the sentences the operator was reading when they decided, not a fresh set worded differently. Null when no screen ever asked for one. */
+            explanation?: components["schemas"]["ExplanationResult"] | null;
         };
         TraceEvent: {
             event_id: string;
