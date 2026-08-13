@@ -7,7 +7,7 @@ import {
   validateScenario,
   CANONICAL_SOLVER_PARAMETERS,
 } from "@/lib/api";
-import { Alert, Header, Section, StatusBadge } from "@/components/ui";
+import { Alert, Header } from "@/components/ui";
 
 export const metadata = {
   title: "PiggyOn — 철도 슬롯 편성",
@@ -21,6 +21,20 @@ export const metadata = {
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * The button is the point of this page.
+ *
+ * It looks like a click tax -- one scenario, no options, nothing to choose --
+ * but it is what keeps `create → validate → solve` off a GET. Each press stores
+ * a new scenario and run server-side, so doing it on load would pile up a
+ * scenario per refresh and let a prefetch start a solve nobody asked for. The
+ * solver also runs up to ten seconds; behind a click that reads as work, on
+ * load it reads as a hang.
+ *
+ * Everything else here is deliberately quiet. The storage backend and the
+ * generative fallback matter when something is wrong, not when it is the first
+ * thing a visitor sees.
+ */
 async function startScenario() {
   "use server";
 
@@ -41,80 +55,65 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
 
-      <main className="max-w-[1060px] mx-auto px-6 py-12 flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-3xl font-bold text-gray-900">철도 슬롯 편성</h1>
-          <p className="text-base text-gray-500 leading-7 max-w-2xl">
-            정본 시나리오(주문 9건 · 운행 3개 · 슬롯 7개)를 편성해, 주문마다{" "}
-            <strong className="text-gray-900">편성 가능 · 확인 필요 · 불가</strong>를
-            판정하고 불가한 주문은 무엇을 바꾸면 다시 검토할 수 있는지 보여줍니다.
+      <main className="max-w-[720px] mx-auto px-6 py-20 flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-4xl font-bold text-gray-900 leading-tight">철도 슬롯 편성</h1>
+          <p className="text-lg text-gray-500 leading-8">
+            주문 9건을 운행 3개·슬롯 7개에 편성해, 주문마다{" "}
+            <strong className="text-gray-900">편성 가능 · 대기 · 불가 · 확인 필요</strong>를
+            판정하고, 불가한 주문은 무엇을 바꾸면 다시 검토할 수 있는지 보여줍니다.
           </p>
         </div>
 
-        <Section title="백엔드 상태" accent="blue">
-          {backend.reachable ? (
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                <StatusBadge label="연결됨" size="sm" />
-                <span className="text-gray-500">
-                  저장소{" "}
-                  <code className="font-mono text-gray-900">
-                    {backend.health.storage_backend}
-                  </code>
-                  {backend.health.storage_reachable ? " · 도달 가능" : " · 도달 불가"}
-                </span>
-                <span className="text-gray-300">|</span>
-                <span className="text-gray-500">
-                  생성형 레이어{" "}
-                  {backend.ai.llm_available ? (
-                    <code className="font-mono text-gray-900">LLM</code>
-                  ) : (
-                    <code className="font-mono text-gray-900">{backend.ai.fallback}</code>
-                  )}
-                </span>
-              </div>
-              {!backend.ai.llm_available && (
-                <p className="text-xs text-gray-400">
-                  모델 키가 없어 규칙 기반 추출과 템플릿 문장으로 동작합니다. 판정과 편성은
-                  생성형 레이어와 무관하므로 결과는 동일합니다.
-                </p>
-              )}
-            </div>
-          ) : (
-            <Alert type="error">
-              <strong className="text-gray-900">백엔드에 연결할 수 없습니다.</strong>
-              <br />
-              <code className="text-xs font-mono break-all">{backend.detail}</code>
-              <br />
-              <span className="text-sm">
-                백엔드 저장소에서 <code className="font-mono">uvicorn app.main:app --port 8000</code>
-                을 실행하고, <code className="font-mono">.env.local</code>의{" "}
-                <code className="font-mono">API_BASE_URL</code>을 확인하세요.
-              </span>
-            </Alert>
-          )}
-        </Section>
+        {backend.reachable ? (
+          <div className="flex flex-col gap-3">
+            <form action={startScenario}>
+              <button
+                type="submit"
+                className="h-14 px-8 rounded-full bg-korail-blue text-white text-lg font-semibold transition-colors hover:bg-[#004080]"
+              >
+                데모 시나리오 시작
+              </button>
+            </form>
+            <p className="text-sm text-gray-400">
+              시나리오를 만들고 입력을 검증한 뒤 기본 편성을 실행합니다. 최대{" "}
+              {CANONICAL_SOLVER_PARAMETERS.max_time_seconds}초 걸립니다.
+            </p>
+          </div>
+        ) : (
+          <Alert type="error">
+            <strong className="text-gray-900">백엔드에 연결할 수 없습니다.</strong>
+            <br />
+            <code className="text-xs font-mono break-all">{backend.detail}</code>
+            <br />
+            <span className="text-sm">
+              백엔드 저장소에서{" "}
+              <code className="font-mono">uvicorn app.main:app --port 8000</code>을 실행하고,{" "}
+              <code className="font-mono">.env.local</code>의{" "}
+              <code className="font-mono">API_BASE_URL</code>을 확인하세요. 백엔드 없이 그럴듯한
+              결과를 그리지는 않습니다.
+            </span>
+          </Alert>
+        )}
 
-        <form action={startScenario}>
-          <button
-            type="submit"
-            disabled={!backend.reachable}
-            className="h-12 px-6 rounded-full bg-korail-blue text-white text-base font-semibold transition-colors hover:bg-[#004080] disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            데모 시나리오 시작
-          </button>
-          <p className="mt-3 text-sm text-gray-400">
-            시나리오를 생성하고 입력을 검증한 뒤 기본 편성을 실행합니다. 솔버 설정은
-            재현을 위해 고정입니다 — seed {CANONICAL_SOLVER_PARAMETERS.random_seed} · worker{" "}
-            {CANONICAL_SOLVER_PARAMETERS.num_search_workers} · 제한{" "}
-            {CANONICAL_SOLVER_PARAMETERS.max_time_seconds}초.
+        <footer className="pt-6 border-t border-gray-200 flex flex-col gap-2 text-xs text-gray-400">
+          <p>
+            모든 운영 수치는 <code className="font-mono">DEMO_ASSUMPTION</code>입니다. 실제 운행
+            가능성이나 비용·탄소 절감을 주장하지 않습니다.
           </p>
-        </form>
-
-        <Alert type="info">
-          <strong className="text-gray-900">데모 가정</strong> — 모든 운영 수치와 좌표는
-          DEMO_ASSUMPTION입니다. 실제 운행 가능성, 비용·탄소 절감을 주장하지 않습니다.
-        </Alert>
+          {backend.reachable && (
+            <p>
+              백엔드 연결됨 · 저장소{" "}
+              <code className="font-mono">{backend.health.storage_backend}</code> · 생성형 레이어{" "}
+              <code className="font-mono">
+                {backend.ai.llm_available ? "LLM" : backend.ai.fallback}
+              </code>
+              {!backend.ai.llm_available && " (판정과 편성은 이 레이어와 무관합니다)"} · 솔버 seed{" "}
+              {CANONICAL_SOLVER_PARAMETERS.random_seed} · worker{" "}
+              {CANONICAL_SOLVER_PARAMETERS.num_search_workers}
+            </p>
+          )}
+        </footer>
       </main>
     </div>
   );

@@ -1,7 +1,7 @@
 # PiggyOn — 철도 슬롯 편성 (프론트엔드)
 
 운영자가 주문을 **편성 가능 / 확인 필요 / 불가**로 판정하고, 불가한 주문에 대해
-무엇을 바꾸면 다시 검토할 수 있는지 보여주는 화면 6개.
+무엇을 바꾸면 다시 검토할 수 있는지 보여주는 화면 3개.
 
 > 모든 운영 수치는 `DEMO_ASSUMPTION` 목업이다. 실제 운행 가능성이나 운영 성과의
 > 근거로 사용하지 않는다.
@@ -38,14 +38,33 @@ npm run dev
 | 경로 | 데이터 |
 | --- | --- |
 | `/` | `GET /health`, `GET /v1/ai/status` · 시작 버튼이 create→validate→run |
-| `/scenarios/{id}` | `GET /v1/scenarios/{id}` (+ `GET /v1/runs/{id}`) |
-| `/scenarios/{id}/validate` | `POST /v1/scenarios/{id}/validate` |
-| `/scenarios/{id}/eligibility` | 같은 검증 응답 |
-| `/scenarios/{id}/runs/{runId}` | `GET /v1/runs/{id}` + `GET /v1/runs/{id}/explanation` |
-| `.../alternatives` | `POST /v1/runs/{id}/alternatives` (`?order=`로 선택) |
+| `/scenarios/{id}?run={runId}` | `GET /v1/scenarios/{id}` · `POST .../validate` · `GET /v1/runs/{id}` + `/explanation` |
 | `.../decisions` | `GET /v1/runs/{id}` + `/export` + `POST .../decisions` |
 
+대시보드는 한 스냅샷과 한 실행에서 나오는 모든 것을 세로로 쌓는다 — ① 입력,
+② 타임라인, ③ 편성과 대기·불가 구역. 블록 순서가 곧 작업 순서라 스크롤이 흐름이
+된다. 쿼리로 상태를 더한다:
+
+- `?order=ORD-005` — 옆에 상세 패널을 연다 (다섯 상태축, 비교값, 출처)
+- `?alt=ORD-005` — 승인된 변경으로 파생 시나리오를 계산해 아래에 그린다
+
+`/validate`, `/eligibility`, `/runs/{runId}`, `.../alternatives`는 307로 대시보드에
+넘긴다. 앞의 둘은 같은 검증 응답을 각자 POST해서 거의 같은 표를 그리던 화면이고,
+대안은 화면이 아니라 주문 하나에 대한 동작이다. 결정만 따로 남는다 — 되돌릴 수
+없는 POST라 어떤 실행을 두고 내린 결정인지의 경계가 주소로 있어야 한다.
+
 전부 서버 컴포넌트다. `API_BASE_URL`은 서버에서만 읽으며 `NEXT_PUBLIC_`이 아니다.
+
+## 화면이 하지 않는 것
+
+판정은 백엔드가 한다. 화면은 사유 코드가 **어떤 두 값을 견준 것인지** 짚어줄 뿐이다
+(`src/lib/view/constraints.ts`) — `준비 11:00 → 반입 마감 10:30 · 30분 초과`. 값은
+전부 스냅샷 원본이고, 유일한 산술은 서비스가 하는 것과 같은 것뿐이다(도착 + 도착
+터미널 하역시간, 그리고 초과분).
+
+두 값이 초과를 보이지 않으면 초과 배지를 지우고 개발 콘솔에 경고한다. 상태는 그대로
+서비스의 것을 쓴다 — 화면의 산술로 판정을 덮지 않는다. 매핑이 없는 사유 코드는 라벨만
+나오고, 네 구역 어디에도 안 걸리는 상태 조합은 `분류되지 않음`으로 보인다.
 
 ## 계약
 

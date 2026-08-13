@@ -1,8 +1,9 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 
 import { getExplanation, getExportBundle, getRun, recordDecision } from "@/lib/api";
 import type { ActorRole, DecisionState, SelectedPlan } from "@/lib/api";
-import { Alert, Header, SceneNav, Section, StatCard, StatusBadge } from "@/components/ui";
+import { Alert, Header, Section, StatCard, StatusBadge } from "@/components/ui";
 import { formatDateTime } from "@/lib/view/format";
 import { reasonLabel } from "@/lib/view/reasons";
 
@@ -60,17 +61,23 @@ export default async function DecisionsPage({
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
-      <header>
+      {/* 결정만 대시보드에서 떼어 둔다. 되돌릴 수 없는 POST이고, 어떤 실행을
+          두고 내린 결정인지의 경계가 주소로 남아 있어야 재현성 해시와 함께
+          추적된다. */}
+      <header className="bg-white border-b border-gray-200">
         <Header />
-        <div className="bg-white px-6 pt-6 pb-4">
-          <div className="max-w-[1060px] mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900">결정 기록</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              운영자가 이 실행을 채택·보류·반려하고, 근거와 함께 남깁니다
-            </p>
-          </div>
+        <div className="max-w-[1060px] mx-auto px-6 py-5">
+          <Link
+            href={`/scenarios/${encodeURIComponent(scenarioId)}?run=${encodeURIComponent(runId)}`}
+            className="text-sm text-korail-blue hover:underline"
+          >
+            ← 편성 대시보드
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900 mt-2">결정 기록</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            운영자가 이 실행을 채택·보류·반려하고, 근거와 함께 남깁니다
+          </p>
         </div>
-        <SceneNav scenarioId={scenarioId} runId={runId} />
       </header>
 
       <main className="max-w-[1060px] mx-auto px-6 py-8 flex flex-col gap-5">
