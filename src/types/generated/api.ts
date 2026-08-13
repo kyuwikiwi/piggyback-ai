@@ -184,6 +184,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/intake/order-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Structure one document that asks for several orders (P4a)
+         * @description A request for five trailers arrives as one message, not five. The single-order endpoint keeps whichever order the model read first and drops the rest without saying so. Each entry then goes through the same sanitising and missing-field reporting as a single draft. Without a model key there is no split to make, so one draft comes back.
+         */
+        post: operations["structureIntakeBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs/{run_id}/explanation": {
         parameters: {
             query?: never;
@@ -198,6 +218,26 @@ export interface paths {
         get: operations["getRunExplanation"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{run_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer one question about a solved run (P4d)
+         * @description Answered from the run's own verified facts, or refused. Unlike an explanation card there is no template to fall back to, and a plausible wrong answer to "왜 밀렸나요?" cannot be told from a right one, so an answer naming anything the run does not contain is withheld and the guard's verdict is returned in refused_reason.
+         */
+        post: operations["askRunQuestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -612,6 +652,27 @@ export interface components {
             compatibility_tags?: components["schemas"]["CompatibilityTags"] | null;
             priority_class?: ("P1" | "P2" | "P3") | null;
         };
+        IntakeBatchResult: {
+            orders: components["schemas"]["IntakeResult"][];
+            /** @enum {string} */
+            source: "LLM" | "RULE_BASED";
+            /** @description True when the document named more orders than the page returns. */
+            truncated: boolean;
+        };
+        QuestionRequest: {
+            question: string;
+        };
+        QuestionResult: {
+            /** @description Empty when the answer was refused. */
+            answer: string;
+            /** @enum {string} */
+            source: "LLM" | "UNAVAILABLE";
+            /** @description False when the layer is unconfigured or the guard withheld the answer. */
+            grounded: boolean;
+            /** @description Which guard fired, so a withheld answer is never silent. */
+            refused_reason?: string | null;
+            used_order_ids: string[];
+        };
         IntakeResult: {
             order_draft: components["schemas"]["OrderDraft"];
             /** @description Dotted for nested gaps, e.g. `dimensions_mm.width`. */
@@ -644,11 +705,17 @@ export interface components {
             detail: string;
             display_label: string;
             display_badges: string[];
+            /** @description The exact set of approved changes to apply together, usually one. Present only on an order the plan left out that still has an approval window. A proposal, not an answer -- the alternative search decides, and often refuses. */
+            suggested_adjustment_types?: string[];
+            /** @description One sentence on why that change addresses this order's block. */
+            suggestion?: string;
         };
         ExplanationResult: {
             cards: components["schemas"]["ExplanationCard"][];
             /** @enum {string} */
             source: "LLM" | "TEMPLATE";
+            /** @enum {string} */
+            suggestion_source?: "LLM" | "TEMPLATE";
             replaced_order_ids: string[];
             /** @description order_id -> which guard fired, so a swap is never silent. */
             replaced_reasons: {
@@ -1049,6 +1116,30 @@ export interface operations {
                     "application/json": components["schemas"]["IntakeResult"];
                 };
             };
+        };
+    };
+    structureIntakeBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntakeRequest"];
+            };
+        };
+        responses: {
+            /** @description Structured drafts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeBatchResult"];
+                };
+            };
             400: components["responses"]["InvalidInput"];
         };
     };
@@ -1070,6 +1161,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplanationResult"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    askRunQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Answer or refusal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionResult"];
                 };
             };
             404: components["responses"]["NotFound"];

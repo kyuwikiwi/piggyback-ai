@@ -107,6 +107,29 @@ export function nextOrderId(snapshot: ScenarioInputSnapshot): string {
   return `ORD-${String(next).padStart(3, "0")}`;
 }
 
+/**
+ * An order straight from a draft, without a form in between.
+ *
+ * Used when a document asked for several at once. Nulls survive as nulls --
+ * a draft with no weight becomes an order with no weight, which the validator
+ * answers with `확인 필요`. Filling them in here to make the batch look tidy
+ * would be the one thing this system exists not to do.
+ */
+export function orderFromDraft(
+  draft: OrderDraft,
+  snapshot: ScenarioInputSnapshot,
+  orderId: string = nextOrderId(snapshot),
+): Order {
+  const values = formValuesFrom(snapshot, draft);
+  const form = new FormData();
+  for (const [field, value] of Object.entries(values)) form.set(field, value);
+  // The one field a blank must survive: `formValuesFrom` leaves it empty and
+  // `orderFromForm` turns an empty string into null.
+  form.set("gross_weight_kg", draft.gross_weight_kg == null ? "" : String(draft.gross_weight_kg));
+
+  return orderFromForm(form, snapshot, orderId);
+}
+
 export function orderFromForm(
   formData: FormData,
   snapshot: ScenarioInputSnapshot,

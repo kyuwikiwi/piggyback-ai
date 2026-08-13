@@ -12,8 +12,9 @@ export {
   readValidation,
   validateScenario,
 } from "./scenarios";
-export { structureOrder } from "./intake";
+export { structureOrder, structureOrders } from "./intake";
 export {
+  askQuestion,
   createAlternative,
   getExplanation,
   getExportBundle,
