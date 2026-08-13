@@ -15,3 +15,5 @@ export {
   getRun,
   recordDecision,
 } from "./runs";
+export { getAiStatus, getHealth, probeBackend } from "./system";
+export type { BackendStatus } from "./system";

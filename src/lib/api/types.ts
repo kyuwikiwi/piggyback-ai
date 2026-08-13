@@ -8,9 +8,14 @@
  * Nothing here is hand-written -- edit the backend's openapi.yaml and rerun
  * `npm run gen:api`.
  */
-import type { components } from "@/types/generated/api";
+import type { components, paths } from "@/types/generated/api";
 
 type Schemas = components["schemas"];
+
+/** `/health` and `/v1/ai/status` answer with inline schemas, not named ones. */
+type JsonBody<T> = T extends { content: { "application/json": infer B } } ? B : never;
+export type Health = JsonBody<paths["/health"]["get"]["responses"][200]>;
+export type AiStatus = JsonBody<paths["/v1/ai/status"]["get"]["responses"][200]>;
 
 // ─── 시나리오 ───
 export type Scenario = Schemas["Scenario"];
