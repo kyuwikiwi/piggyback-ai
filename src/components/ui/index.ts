@@ -14,4 +14,4 @@ export { WagonDiagram } from "./WagonDiagram";
 export { OrderTray } from "./OrderTray";
 export type { TrayEntry, TrayTone } from "./OrderTray";
 export { Timeline } from "./Timeline";
-export type { TimelineMarker, TimelineRow, TimelineTone } from "./Timeline";
+export type { TimelineGroup, TimelineMarker, TimelineRow, TimelineTone } from "./Timeline";

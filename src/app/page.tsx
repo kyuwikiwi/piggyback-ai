@@ -103,7 +103,7 @@ export default async function LandingPage() {
               <span className="flex items-baseline gap-3 text-[13px] text-ink-3">
                 {scenarios.length > 1 && (
                   <Link href="/compare" className="text-korail-blue hover:underline">
-                    두 개 비교
+                    시나리오 비교
                   </Link>
                 )}
                 <span className="tabular-nums">{scenarios.length}건 · 최신순</span>
@@ -112,7 +112,7 @@ export default async function LandingPage() {
 
             {scenarios.length === 0 ? (
               <p className="text-sm text-ink-3 border border-dashed border-line-strong rounded-lg px-4 py-8 text-center">
-                아직 없습니다. 위 버튼으로 첫 시나리오를 만드세요.
+                저장된 시나리오가 없습니다. 위 버튼으로 시작하세요.
               </p>
             ) : (
               <div className="panel overflow-x-auto">
@@ -123,8 +123,8 @@ export default async function LandingPage() {
                       <th className="font-medium py-3 pr-3 sm:w-[150px] whitespace-nowrap">상태</th>
                       <th className="hidden sm:table-cell font-medium py-3 pr-6 text-right w-[72px]">주문</th>
                       <th className="font-medium py-3 pr-3 sm:w-[96px] whitespace-nowrap">결정</th>
-                      <th className="hidden md:table-cell font-medium py-3 pr-3">유래</th>
-                      <th className="font-medium py-3 pr-5 text-right sm:w-[104px] whitespace-nowrap">만든 때</th>
+                      <th className="hidden md:table-cell font-medium py-3 pr-3">파생</th>
+                      <th className="font-medium py-3 pr-5 text-right sm:w-[104px] whitespace-nowrap">생성일시</th>
                     </tr>
                   </thead>
                   <tbody>

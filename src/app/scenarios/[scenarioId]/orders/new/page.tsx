@@ -145,7 +145,7 @@ export default async function NewOrderPage({
 
       <main className="max-w-[860px] mx-auto px-6 py-6 flex flex-col gap-4">
         <Section
-          title="의뢰 문구에서 값 뽑기"
+          title="의뢰 문장에서 주문 정보 추출"
           headerRight={<span className="text-[13px]">선택 사항</span>}
         >
           {/* A GET form: structuring reads the text and stores nothing, so the
@@ -163,7 +163,7 @@ export default async function NewOrderPage({
                 값 추출
               </button>
               <span className="text-[13px] text-ink-3">
-                건너뛰고 바로 입력해도 됩니다
+                건너뛰고 아래에 직접 입력해도 됩니다
               </span>
             </div>
           </form>
@@ -171,7 +171,7 @@ export default async function NewOrderPage({
           {drafts.length > 1 && (
             <div className="mt-4 pt-4 border-t border-line flex flex-col gap-3">
               <span className="text-[13px] text-ink-3">
-                이 문구에서 주문 {drafts.length}건을 읽었습니다
+                이 문장에서 주문 {drafts.length}건을 추출했습니다
                 {batch?.truncated && " (더 있었지만 잘렸습니다)"}
               </span>
 
@@ -197,7 +197,7 @@ export default async function NewOrderPage({
                         .join(" · ") || "읽은 값 없음"}
                     </span>
                     {index === picked && (
-                      <span className="ml-auto text-[13px] text-korail-blue">아래 폼에 채워짐</span>
+                      <span className="ml-auto text-[13px] text-korail-blue">아래에 입력됨</span>
                     )}
                   </Link>
                 ))}
@@ -225,7 +225,7 @@ export default async function NewOrderPage({
               {filled.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[13px] text-ink-3">
-                    문구에서 옮긴 값
+                    추출한 값
                     {evidenceByField.size === 0 &&
                       " (규칙 기반 추출은 근거 문장을 남기지 않습니다)"}
                   </span>
@@ -244,7 +244,7 @@ export default async function NewOrderPage({
                 </div>
               ) : (
                 <p className="text-sm text-ink-2">
-                  문구에서 확정할 수 있는 값이 없었습니다. 아래에서 직접 채우세요.
+                  추출할 수 있는 값이 없습니다. 아래에 직접 입력하세요.
                 </p>
               )}
 

@@ -10,10 +10,10 @@ import { rebaselineScenario } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "계보" };
+export const metadata = { title: "파생" };
 
 /**
- * 계보 — 이 시나리오가 어디서 왔고, 여기서 무엇이 갈라져 나갔나.
+ * 파생 — 이 시나리오가 어디서 왔고, 여기서 무엇이 갈라져 나갔나.
  *
  * 스냅샷이 불변이라 "값을 고친다"는 건 늘 파생본을 만드는 일이고, 그래서 이 제품은
  * 쓸수록 시나리오가 늘어난다. 기본안 대비 표와 기준 운행 바꾸기는 둘 다 그 나무를
@@ -39,7 +39,7 @@ export default async function LineageTab({
   return (
     <ScenarioChrome view={view} tab="lineage">
       <Section
-        title="이 시나리오의 자리"
+        title="파생 관계"
       >
         <div className="flex flex-col gap-2.5 text-sm">
           <div className="flex flex-wrap items-baseline gap-x-2">
@@ -52,7 +52,7 @@ export default async function LineageTab({
                 {parentId}
               </Link>
             ) : (
-              <span className="text-ink-2">없습니다 — 이 시나리오가 기본안입니다</span>
+              <span className="text-ink-2">이 시나리오가 기본안입니다</span>
             )}
             {parentId && scenario.change_set.length > 0 && (
               <span className="text-ink">
@@ -164,7 +164,7 @@ export default async function LineageTab({
           <form action={rebaselineScenario} className="flex flex-col gap-3">
             <input type="hidden" name="scenario_id" value={scenarioId} />
             <p className="text-sm text-ink-2 leading-6 max-w-[76ch]">
-              고른 운행으로 같은 주문들을 다시 편성합니다.
+              선택한 운행으로 다시 편성합니다.
             </p>
 
             <div className="flex flex-col gap-1">

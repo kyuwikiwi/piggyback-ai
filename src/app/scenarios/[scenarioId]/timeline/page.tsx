@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Section, Timeline } from "@/components/ui";
 import { ScenarioChrome } from "../ScenarioChrome";
-import type { TimelineMarker, TimelineRow, TimelineTone } from "@/components/ui";
+import type { TimelineGroup, TimelineRow, TimelineTone } from "@/components/ui";
 import { formatTime } from "@/lib/view/format";
 import { isTimeReason, reasonLabel } from "@/lib/view/reasons";
 import { loadScenarioView, type OrderRow } from "@/lib/view/scenario";
@@ -53,20 +53,25 @@ export default async function TimelineTab({
       tone,
       aside:
         tone === "ineligible" && !isTimeReason(row.primaryReasonCode)
-          ? `시간 아님 · ${reasonLabel(row.primaryReasonCode)}`
+          ? `시각 무관 · ${reasonLabel(row.primaryReasonCode)}`
           : null,
     };
   });
 
-  const namedMarkers = snapshot.baseline_service_ids.length > 1;
-  const timelineMarkers: TimelineMarker[] = snapshot.baseline_service_ids.flatMap((id) => {
+  // 운행이 하나뿐이면 왼쪽 열을 비운다 -- 줄이 하나인데 이름을 붙일 이유가 없다.
+  const named = snapshot.baseline_service_ids.length > 1;
+  const timelineGroups: TimelineGroup[] = snapshot.baseline_service_ids.flatMap((id) => {
     const service = idx.serviceById.get(id);
     if (!service) return [];
-    const prefix = namedMarkers ? `${id} ` : "";
     return [
-      { label: `${prefix}반입 마감`, at: service.planning_cutoff_at, hard: true },
-      { label: `${prefix}출발`, at: service.departure_at },
-      { label: `${prefix}도착`, at: service.arrival_at },
+      {
+        id: named ? id : null,
+        markers: [
+          { label: "반입 마감", at: service.planning_cutoff_at, hard: true },
+          { label: "출발", at: service.departure_at },
+          { label: "도착", at: service.arrival_at },
+        ],
+      },
     ];
   });
 
@@ -77,9 +82,9 @@ export default async function TimelineTab({
   return (
     <ScenarioChrome view={view} tab="timeline">
       <Section
-        title="준비 → 납기, 운행의 시각 위에"
+        title="주문 기간과 운행 시각"
       >
-        <Timeline rows={timelineRows} markers={timelineMarkers} />
+        <Timeline rows={timelineRows} groups={timelineGroups} />
       </Section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -107,7 +112,7 @@ export default async function TimelineTab({
         </Section>
 
         <Section
-          title="시간으로 설명되지 않는 탈락"
+          title="시각과 무관한 불가"
           subdued
           headerRight={<span className="text-[13px] tabular-nums">{notTime.length}건</span>}
         >
