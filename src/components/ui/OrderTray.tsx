@@ -15,20 +15,15 @@ import { StatusBadge } from "./StatusBadge";
  * 분류만 하고 판정하지 않는다.
  */
 
+/**
+ * 구역의 색은 왼쪽 선 하나로만 말한다. 예전에는 대기 구역이 통째로 노란 판이었고
+ * 불가 구역은 흰 카드였는데, 배경 전체를 칠하면 그 안의 배지와 초과 표시가 같은
+ * 색조에 묻힌다 — 정작 읽어야 하는 건 줄 안쪽의 두 값이다.
+ */
 const toneStyles = {
-  warning: {
-    heading: "text-amber-600",
-    // 왼쪽 액센트만 쓰는 줄이라 모서리는 각지게 둔다.
-    row: "border-l-[3px] border-amber-400 bg-amber-50",
-  },
-  danger: {
-    heading: "text-red-600",
-    row: "border border-gray-200 rounded-lg bg-white",
-  },
-  muted: {
-    heading: "text-gray-500",
-    row: "rounded-lg bg-gray-50",
-  },
+  warning: { heading: "text-warn", row: "border-l-[3px] border-warn-line bg-warn-bg/50 rounded-r-md" },
+  danger: { heading: "text-bad", row: "border-l-[3px] border-bad-line bg-bad-bg/50 rounded-r-md" },
+  muted: { heading: "text-ink-3", row: "border-l-[3px] border-line-strong bg-sunken rounded-r-md" },
 } as const;
 
 export type TrayTone = keyof typeof toneStyles;
@@ -45,6 +40,8 @@ export interface TrayEntry {
   detailHref: string | null;
   /** 지금 패널에 열려 있는 주문. */
   selected?: boolean;
+  /** 생성형 레이어가 이 주문에 대해 제안을 냈다. 문장은 AI 탭과 패널에 있다. */
+  suggested?: boolean;
 }
 
 export function OrderTray({
@@ -61,17 +58,19 @@ export function OrderTray({
   const styles = toneStyles[tone];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline gap-2">
-        <span className={`text-xs font-semibold ${styles.heading}`}>{title}</span>
-        <span className="text-xs text-gray-400">{entries.length}건</span>
+        <span className={`text-[13px] font-semibold ${styles.heading}`}>{title}</span>
+        <span className="text-[13px] text-ink-3 tabular-nums">{entries.length}건</span>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         {entries.map((entry) => {
           const body = (
             <>
-              <code className="font-mono text-sm font-bold text-gray-900">{entry.orderId}</code>
+              <code className="font-mono text-sm font-semibold text-ink">
+                {entry.orderId}
+              </code>
 
               {entry.label && <StatusBadge label={entry.label} size="sm" />}
               {entry.badges.map((badge) => (
@@ -81,12 +80,21 @@ export function OrderTray({
               {entry.comparison ? (
                 <ConstraintCompare comparison={entry.comparison} />
               ) : (
-                entry.note && <span className="text-xs text-gray-500">{entry.note}</span>
+                entry.note && <span className="text-[13px] text-ink-2">{entry.note}</span>
+              )}
+
+              {/* 제안이 있다는 사실만. 문장까지 여기 늘어놓으면 줄이 두 배가 되고,
+                  이 목록이 답해야 하는 건 "무엇이 안 실렸나"지 "무엇을 해보자"가
+                  아니다. */}
+              {entry.suggested && (
+                <span className="ml-auto text-[13px] text-korail-blue whitespace-nowrap">
+                  제안 있음
+                </span>
               )}
             </>
           );
 
-          const shape = `px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 ${styles.row}`;
+          const shape = `px-3.5 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 ${styles.row}`;
 
           if (!entry.detailHref) {
             return (
@@ -101,7 +109,9 @@ export function OrderTray({
               key={entry.orderId}
               href={entry.detailHref}
               className={`${shape} transition-colors ${
-                entry.selected ? "ring-2 ring-korail-blue" : "hover:border-korail-light"
+                entry.selected
+                  ? "outline outline-korail-blue -outline-offset-1"
+                  : "hover:bg-white"
               }`}
             >
               {body}

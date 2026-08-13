@@ -32,12 +32,12 @@ export function OrderForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-gray-500">화주</span>
+        <label className="field-label">
+          <span>화주</span>
           <select
             name="shipper_id"
             defaultValue={values.shipper_id}
-            className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+            className="field"
           >
             {snapshot.shippers.map((shipper) => (
               <option key={shipper.shipper_id} value={shipper.shipper_id}>
@@ -47,12 +47,12 @@ export function OrderForm({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-gray-500">우선순위</span>
+        <label className="field-label">
+          <span>우선순위</span>
           <select
             name="priority_class"
             defaultValue={values.priority_class}
-            className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+            className="field"
           >
             {["P1", "P2", "P3"].map((priority) => (
               <option key={priority} value={priority}>
@@ -68,12 +68,12 @@ export function OrderForm({
             ["destination_terminal_id", "도착 터미널", values.destination_terminal_id],
           ] as const
         ).map(([name, label, value]) => (
-          <label key={name} className="flex flex-col gap-1.5 text-sm">
-            <span className="text-gray-500">{label}</span>
+          <label key={name} className="field-label">
+            <span>{label}</span>
             <select
               name={name}
               defaultValue={value}
-              className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+              className="field"
             >
               {snapshot.terminals.map((terminal) => (
                 <option key={terminal.terminal_id} value={terminal.terminal_id}>
@@ -90,36 +90,36 @@ export function OrderForm({
             ["due_at", "납기 (KST)", values.due_at],
           ] as const
         ).map(([name, label, value]) => (
-          <label key={name} className="flex flex-col gap-1.5 text-sm">
-            <span className="text-gray-500">{label}</span>
+          <label key={name} className="field-label">
+            <span>{label}</span>
             <input
               type="datetime-local"
               name={name}
               required
               defaultValue={value}
-              className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+              className="field"
             />
           </label>
         ))}
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-gray-500">총중량 (kg)</span>
+        <label className="field-label">
+          <span>총중량 (kg)</span>
           <input
             type="number"
             name="gross_weight_kg"
             min={1}
             defaultValue={values.gross_weight_kg}
             placeholder="모르면 비워 두세요"
-            className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+            className="field"
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-gray-500">규격 태그</span>
+        <label className="field-label">
+          <span>규격 태그</span>
           <select
             name="compatibility_tag"
             defaultValue={values.compatibility_tag}
-            className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+            className="field"
           >
             {["TRAILER_STANDARD", "TRAILER_TALL"].map((tag) => (
               <option key={tag} value={tag}>
@@ -132,24 +132,21 @@ export function OrderForm({
 
       <div className="grid grid-cols-3 gap-4">
         {DIMENSIONS.map(([name, label]) => (
-          <label key={name} className="flex flex-col gap-1.5 text-sm">
-            <span className="text-gray-500">{label} (mm)</span>
+          <label key={name} className="field-label">
+            <span>{label} (mm)</span>
             <input
               type="number"
               name={name}
               min={1}
               required
               defaultValue={values[name]}
-              className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+              className="field"
             />
           </label>
         ))}
       </div>
 
-      <button
-        type="submit"
-        className="self-start h-11 px-6 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
-      >
+      <button type="submit" className="btn btn-primary self-start">
         {submitLabel}
       </button>
     </form>

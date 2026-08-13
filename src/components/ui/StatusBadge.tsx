@@ -1,11 +1,9 @@
 const intentStyles = {
-  green:  "bg-emerald-50 text-emerald-700 border-emerald-200",
-  amber:  "bg-amber-50 text-amber-700 border-amber-200",
-  red:    "bg-red-50 text-red-700 border-red-200",
-  blue:   "bg-blue-50 text-blue-700 border-blue-200",
-  purple: "bg-violet-50 text-violet-700 border-violet-200",
-  cyan:   "bg-cyan-50 text-cyan-700 border-cyan-200",
-  muted:  "bg-gray-100 text-gray-500 border-gray-200",
+  ok: "border-ok-line bg-ok-bg text-ok",
+  warn: "border-warn-line bg-warn-bg text-warn",
+  bad: "border-bad-line bg-bad-bg text-bad",
+  info: "border-korail-blue/25 bg-korail-blue/5 text-korail-blue",
+  neutral: "border-line-strong bg-sunken text-ink-2",
 } as const;
 
 type Intent = keyof typeof intentStyles;
@@ -16,69 +14,75 @@ type Intent = keyof typeof intentStyles;
  * Two vocabularies meet here: the service's enums, which arrive verbatim, and
  * this app's own Korean wording. Both are listed so an unknown label is a real
  * signal rather than a styling gap -- see the warning in the component.
+ *
+ * 어휘 다섯 개뿐이다. 예전에는 보라와 청록이 더 있었는데, 초록·노랑·빨강이 이미
+ * 판정을 뜻하는 화면에서 뜻 없는 색이 둘 더 돌아다니면 색 자체가 신호이길 그만둔다.
+ *
+ * 초록은 판정에만 쓴다. `SOLVED`·`COMPLETED` 같은 생애주기 값은 중립이다 — 머리말에
+ * `SOLVED` `OPTIMAL` `PASS`가 나란히 초록으로 서 있으면, 정작 확인해야 하는
+ * 독립 검증 결과가 나머지 둘에 묻힌다.
  */
 const labelIntent: Record<string, Intent> = {
   // 표시 라벨 (02 §4) — 서비스가 계산해서 내려주는 값
-  "확인 필요": "amber",
-  "편성 가능": "green",
-  "편성 가능·미배정": "cyan",
-  "기본안 불가·대안 미검토": "amber",
+  "확인 필요": "warn",
+  "편성 가능": "ok",
+  "편성 가능·미배정": "info",
+  "기본안 불가·대안 미검토": "warn",
   // INELIGIBLE + AVAILABLE. Amber rather than red on purpose: the baseline
   // cannot carry this order, but an approved change can, and the row already
   // carries `조건부 대안 있음` beside it. Red here would say the opposite of
   // the badge next to it.
-  "기본안 불가": "amber",
-  불가: "red",
-  "조건부 대안 있음": "purple",
+  "기본안 불가": "warn",
+  불가: "bad",
+  "조건부 대안 있음": "info",
 
-  // 시나리오 상태
-  VALIDATION_REQUIRED: "amber",
-  READY_TO_SOLVE: "blue",
-  SOLVED: "green",
+  // 시나리오 상태 — 어디까지 진행했는지일 뿐, 좋고 나쁨이 아니다
+  VALIDATION_REQUIRED: "warn",
+  READY_TO_SOLVE: "neutral",
+  SOLVED: "neutral",
 
   // 검증 상태
-  COMPLETED: "green",
-  FAILED: "red",
-  PASS: "green",
-  FAIL: "red",
+  COMPLETED: "neutral",
+  FAILED: "bad",
+  PASS: "ok",
+  FAIL: "bad",
 
   // 솔버
-  OPTIMAL: "green",
-  FEASIBLE: "amber",
-  INFEASIBLE: "red",
-  UNKNOWN: "muted",
-  SOLVED_OPTIMAL: "green",
-  SOLVED_FEASIBLE: "amber",
-  MODEL_INFEASIBLE: "red",
-  RUN_ERROR: "red",
-  RUN_REVIEW_REQUIRED: "amber",
+  OPTIMAL: "ok",
+  FEASIBLE: "warn",
+  INFEASIBLE: "bad",
+  UNKNOWN: "neutral",
+  SOLVED_OPTIMAL: "ok",
+  SOLVED_FEASIBLE: "warn",
+  MODEL_INFEASIBLE: "bad",
+  RUN_ERROR: "bad",
+  RUN_REVIEW_REQUIRED: "warn",
 
   // 결정
-  ACCEPTED: "green",
-  HELD: "amber",
-  REJECTED: "red",
-  채택: "green",
-  보류: "amber",
-  반려: "red",
+  ACCEPTED: "ok",
+  HELD: "warn",
+  REJECTED: "bad",
+  채택: "ok",
+  보류: "warn",
+  반려: "bad",
 
   // 화면 자체 어휘
-  연결됨: "green",
-  "연결 안 됨": "red",
-  "기준 운행": "blue",
-  "대안 운행": "purple",
-  유효: "green",
-  적합: "green",
-  부적합: "red",
-  미평가: "muted",
-  P1: "red",
-  P2: "amber",
-  P3: "muted",
+  연결됨: "ok",
+  "연결 안 됨": "bad",
+  "기준 운행": "neutral",
+  "대안 운행": "info",
+  유효: "ok",
+  적합: "ok",
+  부적합: "bad",
+  미평가: "neutral",
+  P1: "neutral",
+  P2: "neutral",
+  P3: "neutral",
 };
 
 const sizeStyles = {
-  sm: "text-[11px] px-2 py-0.5",
-  md: "text-xs px-2.5 py-1",
-  lg: "text-sm px-3 py-1.5",
+  sm: "text-[12px] px-2 py-0.5",
+  md: "text-[13px] px-2.5 py-0.5",
 } as const;
 
 type Size = keyof typeof sizeStyles;
@@ -101,12 +105,11 @@ export function StatusBadge({ label, size = "md", className = "" }: StatusBadgeP
     );
   }
 
-  const colors = intentStyles[known ? labelIntent[label] : "muted"];
-  const sizing = sizeStyles[size];
+  const colors = intentStyles[known ? labelIntent[label] : "neutral"];
 
   return (
     <span
-      className={`inline-block font-semibold rounded-full border whitespace-nowrap ${colors} ${sizing} ${className}`}
+      className={`inline-block rounded-md border font-medium whitespace-nowrap ${colors} ${sizeStyles[size]} ${className}`}
     >
       {label}
     </span>

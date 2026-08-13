@@ -3,22 +3,16 @@ import type { Assumption } from "@/lib/api";
 /** The vocabulary the contract allows on an assumption. */
 type SourceType = Assumption["source_type"];
 
-const sourceConfig: Record<SourceType, { label: string; icon: string; className: string }> = {
-  PUBLIC_CONFIRMED: {
-    label: "공개 확인",
-    icon: "✓",
-    className: "bg-emerald-50 text-emerald-600",
-  },
-  INSTITUTION_CONFIRMATION_REQUIRED: {
-    label: "기관 확인 필요",
-    icon: "?",
-    className: "bg-amber-50 text-amber-600",
-  },
-  DEMO_ASSUMPTION: {
-    label: "데모 가정",
-    icon: "△",
-    className: "bg-[#00afd5]/10 text-[#00afd5]",
-  },
+/**
+ * 값이 어디서 왔는지.
+ *
+ * 앞에 붙던 ✓ ? △는 뗐다 — 라벨이 이미 한국어로 같은 말을 하고 있었고, 세 기호가
+ * StatusBadge·CheckItem의 기호와 뜻이 겹쳐서 화면에 부호 체계가 셋이 됐다.
+ */
+const sourceConfig: Record<SourceType, { label: string; className: string }> = {
+  PUBLIC_CONFIRMED: { label: "공개 확인", className: "text-ok" },
+  INSTITUTION_CONFIRMATION_REQUIRED: { label: "기관 확인 필요", className: "text-warn" },
+  DEMO_ASSUMPTION: { label: "데모 가정", className: "text-ink-3" },
 };
 
 interface SourceBadgeProps {
@@ -30,11 +24,6 @@ export function SourceBadge({ type, className = "" }: SourceBadgeProps) {
   const config = sourceConfig[type];
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${config.className} ${className}`}
-    >
-      <span>{config.icon}</span>
-      {config.label}
-    </span>
+    <span className={`text-[13px] ${config.className} ${className}`}>{config.label}</span>
   );
 }

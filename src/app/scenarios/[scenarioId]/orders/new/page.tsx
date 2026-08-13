@@ -9,7 +9,7 @@ import {
   validateScenario,
 } from "@/lib/api";
 import type { OrderDraft } from "@/lib/api";
-import { Alert, Header, OrderForm, Section, SourceBadge, StatusBadge } from "@/components/ui";
+import { Header, OrderForm, Section, SourceBadge, StatusBadge } from "@/components/ui";
 import {
   formValuesFrom,
   nextOrderId,
@@ -129,25 +129,24 @@ export default async function NewOrderPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="bg-white border-b border-gray-200">
-        <Header />
-        <div className="max-w-[860px] mx-auto px-6 py-5">
-          <Link href={base} className="text-sm text-korail-blue hover:underline">
+    <div className="min-h-screen bg-canvas font-sans">
+      <header className="bg-white border-b border-line">
+        <Header width="narrow" />
+        <div className="max-w-[860px] mx-auto px-6 py-3">
+          <Link href={base} className="text-[13px] text-korail-blue hover:underline">
             ← <code className="font-mono">{scenario.scenario_id}</code>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">주문 추가</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            이 주문을 더한 새 시나리오를 편성합니다. 현재 시나리오는 그대로 남습니다
+          <h1 className="text-lg font-semibold text-ink mt-1.5">주문 추가</h1>
+          <p className="text-[13px] text-ink-3 mt-0.5">
+            새 시나리오로 편성됩니다. 현재 시나리오는 그대로입니다
           </p>
         </div>
       </header>
 
-      <main className="max-w-[860px] mx-auto px-6 py-8 flex flex-col gap-5">
+      <main className="max-w-[860px] mx-auto px-6 py-6 flex flex-col gap-4">
         <Section
           title="의뢰 문구에서 값 뽑기"
-          accent="blue"
-          headerRight={<span className="text-xs text-gray-400">선택 사항</span>}
+          headerRight={<span className="text-[13px]">선택 사항</span>}
         >
           {/* A GET form: structuring reads the text and stores nothing, so the
               result belongs in the URL where it can be reloaded and shared. */}
@@ -157,24 +156,21 @@ export default async function NewOrderPage({
               rows={3}
               defaultValue={text ?? ""}
               placeholder="예: 내일 오전 9시까지 합류 터미널 A로 트레일러 한 대 반입, 도착 터미널 B로 저녁까지 보내주세요. 18톤입니다."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 leading-6"
+              className="field w-full h-auto py-2 leading-6"
             />
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                className="h-10 px-5 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:border-korail-blue hover:text-korail-blue"
-              >
+              <button type="submit" className="btn">
                 값 추출
               </button>
-              <span className="text-xs text-gray-400">
-                건너뛰고 아래에서 바로 입력해도 됩니다
+              <span className="text-[13px] text-ink-3">
+                건너뛰고 바로 입력해도 됩니다
               </span>
             </div>
           </form>
 
           {drafts.length > 1 && (
-            <div className="mt-5 pt-5 border-t border-gray-100 flex flex-col gap-3">
-              <span className="text-xs text-gray-400">
+            <div className="mt-4 pt-4 border-t border-line flex flex-col gap-3">
+              <span className="text-[13px] text-ink-3">
                 이 문구에서 주문 {drafts.length}건을 읽었습니다
                 {batch?.truncated && " (더 있었지만 잘렸습니다)"}
               </span>
@@ -184,87 +180,81 @@ export default async function NewOrderPage({
                   <Link
                     key={index}
                     href={withPick(index)}
-                    className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-2 text-sm transition-colors ${
+                    className={`rounded-md border px-3 py-2 flex flex-wrap items-center gap-2 text-sm transition-colors ${
                       index === picked
-                        ? "border-korail-blue bg-blue-50"
-                        : "border-gray-200 hover:border-korail-light"
+                        ? "border-korail-blue bg-korail-blue/5"
+                        : "border-line hover:border-line-strong"
                     }`}
                   >
-                    <span className="font-medium text-gray-900">{index + 1}번</span>
+                    <span className="font-medium text-ink">{index + 1}번</span>
                     <StatusBadge
                       label={entry.input_state === "VALID" ? "유효" : "확인 필요"}
                       size="sm"
                     />
-                    <span className="text-xs text-gray-500">
+                    <span className="text-[13px] text-ink-2">
                       {filledFields(entry.order_draft)
                         .map(({ field, value }) => `${fieldLabel(field)} ${value}`)
                         .join(" · ") || "읽은 값 없음"}
                     </span>
                     {index === picked && (
-                      <span className="ml-auto text-xs text-korail-blue">아래 폼에 채워짐</span>
+                      <span className="ml-auto text-[13px] text-korail-blue">아래 폼에 채워짐</span>
                     )}
                   </Link>
                 ))}
               </div>
 
               <form action={addAll}>
-                <button
-                  type="submit"
-                  className="h-10 px-5 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
-                >
+                <button type="submit" className="btn btn-primary">
                   {drafts.length}건 모두 추가하고 편성
                 </button>
               </form>
-              <span className="text-xs text-gray-400">
-                비어 있는 값은 채우지 않습니다 — 그 주문은 새 시나리오에서 확인 필요로 잡힙니다
-              </span>
             </div>
           )}
 
           {intake && (
-            <div className="mt-5 pt-5 border-t border-gray-100 flex flex-col gap-4">
+            <div className="mt-4 pt-4 border-t border-line flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge
                   label={intake.input_state === "VALID" ? "유효" : "확인 필요"}
                   size="sm"
                 />
-                <code className="text-xs font-mono text-gray-400">{intake.source}</code>
+                <code className="text-[13px] font-mono text-ink-3">{intake.source}</code>
                 <SourceBadge type={intake.assumption_note} />
               </div>
 
               {filled.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-gray-400">
+                  <span className="text-[13px] text-ink-3">
                     문구에서 옮긴 값
                     {evidenceByField.size === 0 &&
                       " (규칙 기반 추출은 근거 문장을 남기지 않습니다)"}
                   </span>
                   {filled.map(({ field, value }) => (
                     <div key={field} className="flex flex-wrap items-baseline gap-2 text-sm">
-                      <span className="text-gray-500">{fieldLabel(field)}</span>
-                      <span className="font-medium text-gray-900">{value}</span>
+                      <span className="text-ink-3">{fieldLabel(field)}</span>
+                      <span className="font-medium text-ink">{value}</span>
                       {evidenceByField.has(field) && (
                         <>
-                          <span className="text-gray-300">←</span>
-                          <span className="text-gray-500">“{evidenceByField.get(field)}”</span>
+                          <span className="text-ink-3">←</span>
+                          <span className="text-ink-2">“{evidenceByField.get(field)}”</span>
                         </>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-ink-2">
                   문구에서 확정할 수 있는 값이 없었습니다. 아래에서 직접 채우세요.
                 </p>
               )}
 
               {intake.missing_fields.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-gray-400">비어 있음</span>
+                  <span className="text-[13px] text-ink-3">비어 있음</span>
                   {intake.missing_fields.map((field) => (
                     <code
                       key={field}
-                      className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700"
+                      className="text-[13px] font-mono px-1.5 py-px rounded-md border border-warn-line bg-warn-bg text-warn"
                     >
                       {fieldLabel(field)}
                     </code>
@@ -275,7 +265,7 @@ export default async function NewOrderPage({
           )}
         </Section>
 
-        <Section title={`${orderId} 확인`} accent="green">
+        <Section title={`${orderId} 확인`}>
           <OrderForm
             snapshot={snapshot}
             values={formValuesFrom(snapshot, draft)}
@@ -283,12 +273,6 @@ export default async function NewOrderPage({
             submitLabel="이 주문을 더해 새 시나리오 편성"
           />
         </Section>
-
-        <Alert type="info">
-          <strong className="text-gray-900">핵심</strong> — 중량을 비워 두면 추정하지 않고{" "}
-          <strong className="text-gray-900">확인 필요</strong>로 잡힙니다. 생성형 레이어는 문구를
-          읽어 값을 옮길 뿐이며, 터미널과 화주는 이 시나리오의 id 목록 안에서만 선택됩니다.
-        </Alert>
       </main>
     </div>
   );

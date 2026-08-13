@@ -64,15 +64,15 @@ export default async function EditOrderPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="bg-white border-b border-gray-200">
-        <Header />
-        <div className="max-w-[860px] mx-auto px-6 py-5">
-          <Link href={base} className="text-sm text-korail-blue hover:underline">
+    <div className="min-h-screen bg-canvas font-sans">
+      <header className="bg-white border-b border-line">
+        <Header width="narrow" />
+        <div className="max-w-[860px] mx-auto px-6 py-3">
+          <Link href={base} className="text-[13px] text-korail-blue hover:underline">
             ← <code className="font-mono">{scenario.scenario_id}</code>
           </Link>
-          <div className="flex flex-wrap items-center gap-3 mt-2">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex flex-wrap items-center gap-2 mt-1.5">
+            <h1 className="text-lg font-semibold text-ink">
               <code className="font-mono">{orderId}</code> 값 수정
             </h1>
             {verdict && (
@@ -82,27 +82,27 @@ export default async function EditOrderPage({
               />
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-1">
-            고친 값으로 새 시나리오를 편성합니다. 현재 시나리오와 그 결정 기록은 그대로 남습니다
+          <p className="text-[13px] text-ink-3 mt-0.5">
+            새 시나리오로 편성됩니다. 현재 시나리오와 결정 기록은 그대로입니다
           </p>
         </div>
       </header>
 
-      <main className="max-w-[860px] mx-auto px-6 py-8 flex flex-col gap-5">
+      <main className="max-w-[860px] mx-auto px-6 py-6 flex flex-col gap-4">
         {verdict && verdict.missing_fields.length > 0 && (
           <Alert type="warning">
-            <strong className="text-gray-900">
+            <strong className="text-ink">
               {reasonLabel(verdict.primary_reason_code) ?? "확인 필요"}
             </strong>
             <br />
-            <span className="text-sm">
+            <span>
               {verdict.missing_fields.map(fieldLabel).join(", ")}이(가) 비어 있어 이 주문은
               계산에서 빠져 있습니다. 값을 채우면 다시 계산됩니다.
             </span>
           </Alert>
         )}
 
-        <Section title="주문 값" accent="green">
+        <Section title="주문 값">
           <OrderForm
             snapshot={snapshot}
             values={formValuesFrom(snapshot, order)}
@@ -110,12 +110,6 @@ export default async function EditOrderPage({
             submitLabel="고친 값으로 새 시나리오 편성"
           />
         </Section>
-
-        <Alert type="info">
-          <strong className="text-gray-900">핵심</strong> — 여전히 모르는 값은 비워 두세요.
-          비어 있으면 <strong className="text-gray-900">확인 필요</strong>로 남지, 추정한 값이
-          들어가지 않습니다. 승인 범위는 이 주문이 가지고 있던 것을 그대로 옮깁니다.
-        </Alert>
       </main>
     </div>
   );

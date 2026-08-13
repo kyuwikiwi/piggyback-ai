@@ -18,21 +18,21 @@ import { formatTime } from "@/lib/view/format";
 const HOUR = 3_600_000;
 
 const barTone = {
-  assigned: "bg-emerald-100 border-emerald-400",
-  waiting: "bg-amber-100 border-amber-400",
-  ineligible: "bg-red-100 border-red-400",
-  review: "bg-white border-gray-300 border-dashed",
+  assigned: "bg-ok-bg border-ok/45",
+  waiting: "bg-warn-bg border-warn/45",
+  ineligible: "bg-bad-bg border-bad/40",
+  review: "bg-white border-line-strong border-dashed",
   // Eligible, but no run has placed it yet -- a scenario can be read back
   // before it is solved, and neutral is the only honest colour then.
-  pending: "bg-gray-100 border-gray-300",
+  pending: "bg-sunken border-line-strong",
 } as const;
 
 const labelTone = {
-  assigned: "text-gray-500",
-  waiting: "text-amber-600",
-  ineligible: "text-red-600",
-  review: "text-gray-400",
-  pending: "text-gray-500",
+  assigned: "text-ink-2",
+  waiting: "text-warn",
+  ineligible: "text-bad",
+  review: "text-ink-3",
+  pending: "text-ink-3",
 } as const;
 
 export type TimelineTone = keyof typeof barTone;
@@ -92,9 +92,9 @@ export function Timeline({
 
   return (
     <div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3 text-[11px] sm:hidden">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3 text-[13px] sm:hidden">
         {markers.map((marker) => (
-          <span key={marker.label} className={marker.hard ? "text-red-600" : "text-gray-500"}>
+          <span key={marker.label} className={marker.hard ? "text-bad" : "text-ink-3"}>
             {marker.label} {formatTime(marker.at)}
           </span>
         ))}
@@ -112,12 +112,12 @@ export function Timeline({
               <div key={marker.label} className="absolute inset-y-0" style={{ left: `${at}%` }}>
                 <div
                   className={`absolute top-0 sm:top-[18px] bottom-0 w-px ${
-                    marker.hard ? "bg-red-300" : "bg-gray-300"
+                    marker.hard ? "bg-bad/40" : "bg-line-strong"
                   }`}
                 />
                 <div
-                  className={`hidden sm:block absolute top-0 text-[11px] whitespace-nowrap ${
-                    marker.hard ? "text-red-600" : "text-gray-500"
+                  className={`hidden sm:block absolute top-0 text-[13px] whitespace-nowrap ${
+                    marker.hard ? "text-bad" : "text-ink-3"
                   }`}
                   style={flip ? { right: 4 } : { left: 4 }}
                 >
@@ -136,18 +136,18 @@ export function Timeline({
             const to = pct(Date.parse(row.dueAt));
             return (
               <div key={row.orderId} className="contents">
-                <code className={`font-mono text-[11px] ${labelTone[row.tone]}`}>
+                <code className={`font-mono text-[13px] ${labelTone[row.tone]}`}>
                   {row.orderId}
                 </code>
                 <div className="relative h-3.5">
                   <div
-                    className={`absolute inset-y-0 rounded-sm border ${barTone[row.tone]}`}
+                    className={`absolute inset-y-0 rounded-md border ${barTone[row.tone]}`}
                     style={{ left: `${from}%`, width: `${Math.max(to - from, 0.6)}%` }}
                     title={`${formatTime(row.readyAt)} – ${formatTime(row.dueAt)}`}
                   />
                   {row.aside && (
                     <span
-                      className="hidden sm:inline absolute top-0 text-[11px] text-gray-400 whitespace-nowrap"
+                      className="hidden sm:inline absolute top-0 text-[13px] text-ink-3 whitespace-nowrap"
                       style={to > 82 ? { right: 0, top: -14 } : { left: `calc(${to}% + 6px)` }}
                     >
                       {row.aside}
@@ -166,7 +166,7 @@ export function Timeline({
           {ticks.map((tick) => (
             <span
               key={tick}
-              className="absolute top-0 text-[11px] text-gray-400 -translate-x-1/2"
+              className="absolute top-0 text-[13px] text-ink-3 tabular-nums -translate-x-1/2"
               style={{ left: `${pct(tick)}%` }}
             >
               {formatTime(new Date(tick).toISOString())}
@@ -176,7 +176,7 @@ export function Timeline({
       </div>
 
       {asides.length > 0 && (
-        <div className="flex flex-col gap-0.5 mt-3 text-[11px] text-gray-400 sm:hidden">
+        <div className="flex flex-col gap-0.5 mt-3 text-[13px] text-ink-3 sm:hidden">
           {asides.map((row) => (
             <span key={row.orderId}>
               <code className="font-mono">{row.orderId}</code> {row.aside}
