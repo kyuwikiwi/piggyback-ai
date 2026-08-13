@@ -236,13 +236,13 @@ export default async function PlanTab({
               <div className="flex flex-col gap-4 pt-1">
                 <OrderTray
                   tone="warning"
-                  title="대기 — 자리만 나면 이 열차"
+                  title="대기 · 슬롯이 나면 배정"
                   entries={waiting.map(toEntry)}
                 />
                 <OrderTray tone="muted" title="편성 대기" entries={pending.map(toEntry)} />
                 <OrderTray
                   tone="danger"
-                  title="이 열차로는 불가"
+                  title="이 운행으로는 불가"
                   entries={ineligible.map(toEntry)}
                 />
                 <OrderTray tone="muted" title="확인 필요" entries={review.map(toEntry)} />

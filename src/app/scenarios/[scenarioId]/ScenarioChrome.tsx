@@ -28,7 +28,7 @@ const TABS: readonly TabSpec[] = [
   { key: "plan", label: "편성", path: "" },
   { key: "timeline", label: "타임라인", path: "/timeline" },
   { key: "ai", label: "AI", path: "/ai" },
-  { key: "lineage", label: "계보", path: "/lineage" },
+  { key: "lineage", label: "파생", path: "/lineage" },
 ];
 
 export function ScenarioChrome({

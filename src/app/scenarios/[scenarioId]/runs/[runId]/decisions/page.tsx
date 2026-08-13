@@ -163,7 +163,7 @@ export default async function DecisionsPage({
           ]}
         />
 
-        <Section title="주문별 상태축">
+        <Section title="주문별 상태">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

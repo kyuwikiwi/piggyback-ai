@@ -108,7 +108,7 @@ export default async function AiTab({
           )}
 
           <Section
-            title="결과에 묻기"
+            title="편성 결과 질문"
           >
             <div className="flex flex-col gap-3">
               {/* A GET form: asking stores nothing, so the question belongs in
@@ -123,7 +123,7 @@ export default async function AiTab({
                   className="field flex-1 min-w-[280px]"
                 />
                 <button type="submit" className="btn btn-primary">
-                  묻기
+                  질문
                 </button>
               </form>
 
@@ -270,18 +270,18 @@ export default async function AiTab({
           </Section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Section title="문구에서 값 읽기" subdued>
+            <Section title="문장에서 주문 정보 추출" subdued>
               <p className="text-sm text-ink-2 leading-6">
-                의뢰 문장에서 주문 값을 읽습니다. 확정 못 한 값은 비워 둡니다.
+                의뢰 문장에서 주문 정보를 추출합니다. 확정할 수 없는 값은 비워 둡니다.
               </p>
               <Link href={`${base}/orders/new`} className="btn mt-2.5">
-                문구로 주문 추가
+                문장으로 주문 추가
               </Link>
             </Section>
 
             {/* 가드가 실제로 무엇을 걸렀는지. 이 블록이 비어 있는 것도 결과다. */}
             <Section
-              title="가드가 걸러 낸 것"
+              title="차단된 모델 응답"
               subdued
               headerRight={
                 guarded.length + unmatched.length > 0 ? (
@@ -300,7 +300,7 @@ export default async function AiTab({
                   {guarded.map(([orderId, guard]) => (
                     <li key={orderId} className="flex flex-wrap items-baseline gap-x-2">
                       <code className="font-mono font-medium text-ink">{orderId}</code>
-                      <span className="text-warn">문구 교체됨</span>
+                      <span className="text-warn">문장 교체됨</span>
                       <code className="font-mono text-[13px] text-ink-3">{guard}</code>
                     </li>
                   ))}

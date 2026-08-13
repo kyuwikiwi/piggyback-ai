@@ -98,7 +98,7 @@ export default async function ComparePage({
           </Link>
           <h1 className="text-lg font-semibold text-ink mt-1.5">시나리오 비교</h1>
           <p className="text-[13px] text-ink-3 mt-0.5">
-            배정이 달라진 주문만 봅니다
+            배정이 달라진 주문만 표시합니다
           </p>
         </div>
       </header>
@@ -211,7 +211,7 @@ export default async function ComparePage({
           </>
         ) : (
           <p className="text-sm text-ink-3 rounded-[10px] border border-dashed border-line-strong px-4 py-10 text-center">
-            위에서 두 시나리오를 고르세요.
+            위에서 시나리오 2개를 선택하세요.
           </p>
         )}
       </main>
