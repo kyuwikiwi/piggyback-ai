@@ -62,24 +62,24 @@ function SlotCard({
       } ${
         assignment
           ? highlighted
-            ? "border-korail-blue bg-blue-50"
-            : "border-emerald-300 bg-emerald-50"
+            ? "border-korail-blue bg-korail-blue/5"
+            : "border-ok-line bg-ok-bg"
           : slot.available
-            ? "border-dashed border-gray-300 bg-white"
-            : "border-gray-200 bg-gray-100"
+            ? "border-dashed border-line-strong bg-white"
+            : "border-line bg-sunken"
       }`}
     >
-      <code className="text-[10px] font-mono text-gray-400">{slot.slot_id}</code>
+      <code className="text-[11px] font-mono text-ink-3">{slot.slot_id}</code>
       {assignment ? (
         <>
-          <span className="text-sm font-bold text-gray-900 leading-5">{assignment.order_id}</span>
-          <span className="text-[11px] text-gray-500">
+          <span className="text-sm font-semibold text-ink leading-5">{assignment.order_id}</span>
+          <span className="text-[13px] text-ink-2 tabular-nums">
             {formatTonnes(order?.gross_weight_kg)}
             {order && ` · ${order.priority_class}`}
           </span>
         </>
       ) : (
-        <span className={`text-xs text-gray-400 ${stacked ? "" : "mt-1"}`}>
+        <span className={`text-[13px] text-ink-3 ${stacked ? "" : "mt-1"}`}>
           {slot.available ? "비어 있음" : "사용 불가"}
         </span>
       )}
@@ -116,13 +116,13 @@ export function WagonDiagram({
         return (
           <div key={wagon.wagon_id}>
             <div className="flex items-center justify-between mb-2">
-              <code className="text-xs font-mono font-medium text-gray-500">{wagon.wagon_id}</code>
-              <span className="text-xs text-gray-400">
+              <code className="text-[13px] font-mono text-ink-2">{wagon.wagon_id}</code>
+              <span className="text-[13px] text-ink-3 tabular-nums">
                 {formatTonnes(loadedKg)} / {formatTonnes(wagon.max_total_weight_kg)}
               </span>
             </div>
 
-            <div className="rounded-lg border border-gray-300 bg-gray-50 p-1.5">
+            <div className="rounded-md border border-line-strong bg-sunken p-1.5">
               {/* Below sm the coordinates stop helping: three slots across a
                   325px card leave 76px each, which is narrower than the id
                   printed on them. Stacked, every slot stays readable and the
@@ -161,8 +161,8 @@ export function WagonDiagram({
             <div className="hidden sm:flex justify-between px-[12%] -mt-px" aria-hidden="true">
               {[0, 1].map((bogie) => (
                 <div key={bogie} className="flex gap-1">
-                  <div className="w-2.5 h-2.5 rounded-full border border-gray-300 bg-gray-200" />
-                  <div className="w-2.5 h-2.5 rounded-full border border-gray-300 bg-gray-200" />
+                  <div className="w-2.5 h-2.5 rounded-full border border-line-strong bg-line" />
+                  <div className="w-2.5 h-2.5 rounded-full border border-line-strong bg-line" />
                 </div>
               ))}
             </div>

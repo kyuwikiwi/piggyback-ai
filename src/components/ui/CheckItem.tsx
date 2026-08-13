@@ -1,54 +1,38 @@
 /**
- * CheckItem — 제약 조건 검증 결과 아이템
+ * CheckItem — 제약 하나가 어떤 값끼리 견줘서 통과했는지
  *
- * 사용 예:
- *   <CheckItem icon="⏰" label="반입 마감 통과" detail="준비 08:30 → 마감 11:30" status="pass" />
- *   <CheckItem icon="📅" label="납기 충족" detail="도착 18:00 = 납기 18:00" status="warn" />
+ * 예전에는 줄마다 ⏰ ⚖️ 📐 📅 🏭 🔍이 붙어 있었다. 그림이 말해 주는 건 이미
+ * 라벨에 적혀 있고("반입 마감 통과"), 정작 읽어야 하는 건 오른쪽의 두 값이다.
+ * 통과 여부는 부호 하나와 색으로 충분하다.
  */
 
-const statusConfig= {
-    pass:{
-        container:"bg-emerald-50 border-emerald-200",
-        indicator:"text-emerald-600",
-        symbol:"✓",
-    },
-    warn:{
-        container:"bg-amber-50 border-amber-200",
-        indicator:"text-amber-600",
-        symbol:"△",
-    },
-    fail:{
-        container: "bg-red-50 border-red-200",
-        indicator:"text-red-600",
-        symbol:"✗",
-    },
-}as const;
+const statusConfig = {
+  pass: { symbol: "✓", ink: "text-ok", rule: "border-ok-line" },
+  warn: { symbol: "!", ink: "text-warn", rule: "border-warn-line" },
+  fail: { symbol: "✕", ink: "text-bad", rule: "border-bad-line" },
+} as const;
 
-type Status= keyof typeof statusConfig;
+type Status = keyof typeof statusConfig;
 
-interface CheckItemProps{
-    icon: string;
-    label: string;
-    detail: string;
-    status: Status;
-    className?: string;
+interface CheckItemProps {
+  label: string;
+  detail: string;
+  status: Status;
+  className?: string;
 }
 
-export function CheckItem({icon, label, detail, status, className=""}: CheckItemProps){
-    const config= statusConfig[status];
+export function CheckItem({ label, detail, status, className = "" }: CheckItemProps) {
+  const config = statusConfig[status];
 
-    return (
+  return (
     <div
-      className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${config.container} ${className}`}
+      className={`flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-l-2 pl-3 py-1 ${config.rule} ${className}`}
     >
-      <span className="shrink-0 text-xl">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-gray-900">{label}</div>
-        <div className="text-xs text-gray-500 mt-0.5">{detail}</div>
-      </div>
-      <span className={`shrink-0 text-lg font-extrabold ${config.indicator}`}>
+      <span className={`font-semibold text-[13px] ${config.ink}`} aria-hidden="true">
         {config.symbol}
       </span>
+      <span className="text-sm font-medium text-ink">{label}</span>
+      <span className="font-mono text-[13px] text-ink-3">{detail}</span>
     </div>
   );
 }

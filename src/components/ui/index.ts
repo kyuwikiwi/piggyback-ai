@@ -1,10 +1,10 @@
-export {StatusBadge} from "./StatusBadge";
-export {StatCard} from "./StatCard";
-export {Section} from "./Section";
-export {ReasonRow} from "./ReasonRow";
-export {Alert} from "./Alert";
-export {CheckItem} from "./CheckItem";
-export {SourceBadge} from "./SourceBadge";
+export { StatusBadge } from "./StatusBadge";
+export { StatBar } from "./StatBar";
+export type { Stat, StatTone } from "./StatBar";
+export { Section } from "./Section";
+export { Alert } from "./Alert";
+export { CheckItem } from "./CheckItem";
+export { SourceBadge } from "./SourceBadge";
 export { Header } from "./Header";
 export { ConstraintCompare } from "./ConstraintCompare";
 export { OrderPanel } from "./OrderPanel";

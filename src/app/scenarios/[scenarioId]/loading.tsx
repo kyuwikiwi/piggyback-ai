@@ -7,22 +7,20 @@
  */
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <div className="max-w-[1180px] mx-auto px-6 py-16 flex flex-col gap-6">
+    <div className="min-h-screen bg-canvas font-sans">
+      <div className="max-w-[1180px] mx-auto px-6 py-10 flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          <span className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-korail-blue animate-spin" />
-          <span className="text-sm text-gray-500">
+          <span className="w-3.5 h-3.5 rounded-full border-2 border-line-strong border-t-korail-blue animate-spin" />
+          <span className="text-sm text-ink-2">
             시나리오를 불러오고 편성 결과를 계산하고 있습니다
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-4" aria-hidden="true">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex-1 min-w-[90px] h-24 rounded-xl bg-gray-200 animate-pulse" />
-          ))}
-        </div>
-        <div className="h-56 rounded-xl bg-gray-200 animate-pulse" aria-hidden="true" />
-        <div className="h-72 rounded-xl bg-gray-200 animate-pulse" aria-hidden="true" />
+        {/* 화면이 실제로 그리는 모양과 같은 자리를 잡아 둔다 -- 요약 한 줄,
+            타임라인, 편성. */}
+        <div className="h-14 rounded-lg border border-line bg-white animate-pulse" aria-hidden="true" />
+        <div className="h-52 rounded-lg border border-line bg-white animate-pulse" aria-hidden="true" />
+        <div className="h-72 rounded-lg border border-line bg-white animate-pulse" aria-hidden="true" />
       </div>
     </div>
   );

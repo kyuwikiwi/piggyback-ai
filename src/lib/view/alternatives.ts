@@ -16,7 +16,6 @@ import { formatMm, formatTime, formatTonnes } from "./format";
 import { indexSnapshot, routeLimitsOfService } from "./snapshot";
 
 export interface AlternativeCheck {
-  icon: string;
   label: string;
   detail: string;
   status: "pass" | "warn" | "fail";
@@ -53,7 +52,6 @@ export function buildAlternativeChecks(
   if (order?.ready_at && service?.planning_cutoff_at) {
     const ok = new Date(order.ready_at) <= new Date(service.planning_cutoff_at);
     checks.push({
-      icon: "⏰",
       label: ok ? "반입 마감 통과" : "반입 마감 초과",
       detail: `준비 ${formatTime(order.ready_at)} → 마감 ${formatTime(service.planning_cutoff_at)}`,
       status: verdict(ok),
@@ -63,7 +61,6 @@ export function buildAlternativeChecks(
   if (order?.gross_weight_kg != null && slot) {
     const ok = order.gross_weight_kg <= slot.max_weight_kg;
     checks.push({
-      icon: "⚖️",
       label: ok ? "중량 적합" : "중량 초과",
       detail: `${formatTonnes(order.gross_weight_kg)} ≤ 슬롯 한도 ${formatTonnes(slot.max_weight_kg)}`,
       status: verdict(ok),
@@ -73,7 +70,6 @@ export function buildAlternativeChecks(
   if (order && limits) {
     const ok = order.dimensions_mm.height <= limits.max_height_mm;
     checks.push({
-      icon: "📐",
       label: ok ? "규격 적합" : "경로 높이 초과",
       detail: `${formatMm(order.dimensions_mm.height)} ≤ 경로 한도 ${formatMm(limits.max_height_mm)}`,
       status: verdict(ok),
@@ -88,7 +84,6 @@ export function buildAlternativeChecks(
     );
     const ok = readyForPickup <= new Date(order.due_at);
     checks.push({
-      icon: "📅",
       label: ok ? "납기 충족" : "납기 초과",
       detail: `도착 ${formatTime(service.arrival_at)} + 처리 ${destination.minimum_handling_minutes}분 ≤ 납기 ${formatTime(order.due_at)}`,
       status: verdict(ok),
@@ -100,7 +95,6 @@ export function buildAlternativeChecks(
       (tag) => !destination.supported_tags.includes(tag),
     );
     checks.push({
-      icon: "🏭",
       label: unsupported.length === 0 ? "터미널 호환" : "터미널 취급 불가",
       detail:
         unsupported.length === 0
@@ -111,7 +105,6 @@ export function buildAlternativeChecks(
   }
 
   checks.push({
-    icon: "🔍",
     label: validatorStatus === "PASS" ? "독립 검증 통과" : "독립 검증 실패",
     detail:
       validatorStatus === "PASS"

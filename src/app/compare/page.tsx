@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { getRun, getScenario, listScenarios } from "@/lib/api";
 import type { Run, ScenarioDetail } from "@/lib/api";
-import { Alert, Header, Section, StatusBadge, WagonDiagram } from "@/components/ui";
+import { Header, Section, StatusBadge, WagonDiagram } from "@/components/ui";
 import { describeChange, planDeltas } from "@/lib/view/alternatives";
 import { formatRelative } from "@/lib/view/format";
 import { indexSnapshot } from "@/lib/view/snapshot";
@@ -46,7 +46,7 @@ function Summary({ side }: { side: Side }) {
       <div className="flex flex-wrap items-center gap-2">
         <Link
           href={`/scenarios/${encodeURIComponent(side.scenario.scenario_id)}`}
-          className="font-mono text-sm font-bold text-korail-blue hover:underline"
+          className="font-mono text-sm font-semibold text-korail-blue hover:underline"
         >
           {side.scenario.scenario_id}
         </Link>
@@ -54,12 +54,12 @@ function Summary({ side }: { side: Side }) {
         {side.run && <StatusBadge label={side.run.solver_status} size="sm" />}
       </div>
 
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-ink-2">
         주문 {side.scenario.input_snapshot.orders.length}건 · 배정 {assigned}건 · 부적합{" "}
         {ineligible}건
       </div>
 
-      <div className="text-xs text-gray-400">
+      <div className="text-[13px] text-ink-3">
         기준 운행{" "}
         <code className="font-mono">
           {side.scenario.input_snapshot.baseline_service_ids.join(", ")}
@@ -89,22 +89,22 @@ export default async function ComparePage({
   const deltas = left && right ? planDeltas(left.run, right.run) : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-canvas font-sans">
+      <header className="bg-white border-b border-line">
         <Header />
-        <div className="max-w-[1180px] mx-auto px-6 py-5">
-          <Link href="/" className="text-sm text-korail-blue hover:underline">
+        <div className="max-w-[1180px] mx-auto px-6 py-3">
+          <Link href="/" className="text-[13px] text-korail-blue hover:underline">
             ← 시나리오 목록
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">시나리오 비교</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            두 편성을 나란히 놓고 배정이 달라진 주문만 봅니다
+          <h1 className="text-lg font-semibold text-ink mt-1.5">시나리오 비교</h1>
+          <p className="text-[13px] text-ink-3 mt-0.5">
+            배정이 달라진 주문만 봅니다
           </p>
         </div>
       </header>
 
-      <main className="max-w-[1180px] mx-auto px-6 py-8 flex flex-col gap-5">
-        <Section title="비교할 시나리오" accent="blue">
+      <main className="max-w-[1180px] mx-auto px-6 py-6 flex flex-col gap-4">
+        <Section title="비교할 시나리오">
           {/* A GET form: comparing reads two stored plans and writes nothing, so
               the pair belongs in the URL where it can be shared. */}
           <form method="get" className="flex flex-wrap items-end gap-4">
@@ -114,12 +114,12 @@ export default async function ComparePage({
                 ["b", "오른쪽", b],
               ] as const
             ).map(([name, label, value]) => (
-              <label key={name} className="flex flex-col gap-1.5 text-sm">
-                <span className="text-gray-500">{label}</span>
+              <label key={name} className="field-label">
+                <span>{label}</span>
                 <select
                   name={name}
                   defaultValue={value ?? ""}
-                  className="h-10 min-w-[220px] rounded-lg border border-gray-300 px-3 text-gray-900"
+                  className="field min-w-[220px]"
                 >
                   <option value="">— 고르세요 —</option>
                   {scenarios.map((scenario) => (
@@ -132,10 +132,7 @@ export default async function ComparePage({
               </label>
             ))}
 
-            <button
-              type="submit"
-              className="h-10 px-5 rounded-full bg-korail-blue text-white text-sm font-semibold"
-            >
+            <button type="submit" className="btn btn-primary">
               비교
             </button>
           </form>
@@ -150,7 +147,6 @@ export default async function ComparePage({
                   <Section
                     key={side.scenario.scenario_id + i}
                     title={i === 0 ? "왼쪽" : "오른쪽"}
-                    accent={i === 0 ? "muted" : "purple"}
                   >
                     <div className="flex flex-col gap-4">
                       <Summary side={side} />
@@ -168,39 +164,39 @@ export default async function ComparePage({
               })}
             </div>
 
-            <Section title="배정이 달라진 주문" accent="green">
+            <Section title="배정이 달라진 주문">
               {deltas.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  두 편성의 배정이 같습니다. 입력이 달라도 결과가 같을 수 있습니다.
+                <p className="text-sm text-ink-2">
+                  배정이 같습니다. 입력이 달라도 결과는 같을 수 있습니다.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
-                        <th className="py-2 pr-3 font-medium">주문</th>
-                        <th className="py-2 pr-3 font-medium">
+                      <tr className="text-left text-[13px] text-ink-3 border-b border-line">
+                        <th className="py-2.5 pr-3 font-medium">주문</th>
+                        <th className="py-2.5 pr-3 font-medium">
                           <code className="font-mono">{left.scenario.scenario_id}</code>
                         </th>
-                        <th className="py-2 font-medium">
+                        <th className="py-2.5 font-medium">
                           <code className="font-mono">{right.scenario.scenario_id}</code>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {deltas.map((delta) => (
-                        <tr key={delta.orderId} className="border-b border-gray-100">
-                          <td className="py-2.5 pr-3">
-                            <code className="font-mono font-medium text-gray-900">
+                        <tr key={delta.orderId} className="border-b border-line">
+                          <td className="py-3 pr-3">
+                            <code className="font-mono font-medium text-ink">
                               {delta.orderId}
                             </code>
                           </td>
-                          <td className="py-2.5 pr-3 text-gray-500">
+                          <td className="py-3 pr-3 font-mono text-ink-2">
                             {delta.before
                               ? `${delta.before.service_id} · ${delta.before.slot_id}`
                               : "미배정"}
                           </td>
-                          <td className="py-2.5 text-gray-500">
+                          <td className="py-2 font-mono text-ink-2">
                             {delta.after
                               ? `${delta.after.service_id} · ${delta.after.slot_id}`
                               : "미배정"}
@@ -212,16 +208,9 @@ export default async function ComparePage({
                 </div>
               )}
             </Section>
-
-            <Alert type="info">
-              <strong className="text-gray-900">핵심</strong> — 두 배정 모두 서비스가 계산한
-              결과이고, 이 화면은 차이만 골라 보여줍니다. 두 시나리오가 같은 계보에서 나왔는지는
-              위 요약의 파생 표시로 확인하세요. 계보가 다르면 입력 자체가 달라서 비교의 의미가
-              제한됩니다.
-            </Alert>
           </>
         ) : (
-          <p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center">
+          <p className="text-sm text-ink-3 rounded-[10px] border border-dashed border-line-strong px-4 py-10 text-center">
             위에서 두 시나리오를 고르세요.
           </p>
         )}

@@ -21,22 +21,22 @@ export function ConstraintCompare({
   return (
     <span className={`inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 ${className}`}>
       {comparison.actual.map((term, i) => (
-        <span key={term.label} className="font-mono text-xs text-gray-600">
-          {i > 0 && <span className="text-gray-300 mr-2">+</span>}
-          <span className="text-gray-400">{term.label}</span> {term.value}
+        <span key={term.label} className="font-mono text-[13px] text-ink">
+          {i > 0 && <span className="text-ink-3 mr-2">+</span>}
+          <span className="text-ink-3">{term.label}</span> {term.value}
         </span>
       ))}
 
-      <span aria-hidden="true" className="text-gray-300">
+      <span aria-hidden="true" className="text-ink-3">
         →
       </span>
 
-      <span className="font-mono text-xs text-gray-600">
-        <span className="text-gray-400">{comparison.limit.label}</span> {comparison.limit.value}
+      <span className="font-mono text-[13px] text-ink">
+        <span className="text-ink-3">{comparison.limit.label}</span> {comparison.limit.value}
       </span>
 
       {comparison.excess && (
-        <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-red-50 text-red-700 whitespace-nowrap">
+        <span className="text-[13px] font-medium text-bad whitespace-nowrap">
           {comparison.excess}
         </span>
       )}

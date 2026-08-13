@@ -19,9 +19,9 @@ import { StatusBadge } from "./StatusBadge";
  */
 
 const axisTone = {
-  ok: "text-emerald-600",
-  bad: "text-red-600",
-  muted: "text-gray-400",
+  ok: "text-ok",
+  bad: "text-bad",
+  muted: "text-ink-3",
 } as const;
 
 export interface PanelAxis {
@@ -60,7 +60,11 @@ export function OrderPanel({
    */
   search: {
     action: (formData: FormData) => Promise<void>;
+    /** The action re-reads the scenario rather than taking a snapshot by post. */
+    scenarioId: string;
     runId: string;
+    /** Where a miss should land back. */
+    from: "plan" | "ai";
     adjustments: readonly string[];
     label: string;
     /**
@@ -78,13 +82,15 @@ export function OrderPanel({
   editHref: string;
 }) {
   return (
-    <aside className="rounded-xl border border-gray-300 bg-white p-4 flex flex-col gap-3">
+    // 판이 구역 높이만큼 늘어나 아래쪽이 비어 있었다. 내용만큼만 차지하고, 넓은
+    // 화면에서는 목록을 스크롤하는 동안 따라온다.
+    <aside className="self-start lg:sticky lg:top-4 rounded-[10px] border border-line bg-white shadow-panel p-4 flex flex-col gap-3.5">
       <div className="flex items-center gap-2">
-        <code className="font-mono text-base font-bold text-gray-900">{orderId}</code>
+        <code className="font-mono text-[15px] font-semibold text-ink">{orderId}</code>
         <Link
           href={closeHref}
           aria-label="상세 닫기"
-          className="ml-auto text-gray-400 hover:text-gray-600 text-sm"
+          className="ml-auto text-ink-3 hover:text-ink text-[13px]"
         >
           ✕
         </Link>
@@ -99,40 +105,39 @@ export function OrderPanel({
         </div>
       )}
 
-      <dl className="flex flex-col gap-1 text-xs">
+      <dl className="flex flex-col gap-1 text-[13px]">
         {axes.map((axis) => (
           <div key={axis.label} className="flex justify-between gap-3">
-            <dt className="text-gray-500">{axis.label}</dt>
+            <dt className="text-ink-3">{axis.label}</dt>
             <dd className={`font-mono ${axisTone[axis.tone]}`}>{axis.value}</dd>
           </div>
         ))}
       </dl>
 
       {comparison && (
-        <div className="rounded-lg bg-gray-50 p-3 flex flex-col gap-1.5">
-          <code className="text-[11px] text-gray-400">{comparison.code}</code>
+        <div className="rounded-md bg-sunken border border-line px-2.5 py-2 flex flex-col gap-1">
+          <code className="text-[11px] text-ink-3">{comparison.code}</code>
           <ConstraintCompare comparison={comparison} />
         </div>
       )}
 
-      {note && <p className="text-xs text-gray-500 leading-5">{note}</p>}
+      {note && <p className="text-[13px] text-ink-2 leading-5">{note}</p>}
 
-      <div className="flex items-center gap-2 text-[11px] text-gray-400">
+      <div className="flex items-center gap-1.5 text-[13px] text-ink-3">
         <span>입력 출처</span>
         <SourceBadge type={sourceType} />
       </div>
 
       {existingAlternativeHref ? (
-        <Link
-          href={existingAlternativeHref}
-          className="h-9 rounded-full bg-korail-blue text-white text-sm font-semibold flex items-center justify-center hover:bg-[#004080]"
-        >
-          대안 시나리오 열기 →
+        <Link href={existingAlternativeHref} className="btn btn-primary w-full">
+          대안 시나리오 열기
         </Link>
       ) : search ? (
         <form action={search.action} className="flex flex-col gap-2">
+          <input type="hidden" name="scenario_id" value={search.scenarioId} />
           <input type="hidden" name="order_id" value={orderId} />
           <input type="hidden" name="run_id" value={search.runId} />
+          <input type="hidden" name="from" value={search.from} />
 
           {/* One checkbox per approved change rather than sending them all.
               An order approved for both a later service and a different
@@ -140,21 +145,16 @@ export function OrderPanel({
               could not say which one was actually needed -- and the two cost
               very different conversations to arrange. */}
           {search.suggestion && (
-            <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5 flex flex-col gap-1">
-              <span className="text-[10px] text-blue-700">제안</span>
-              <p className="text-[11px] text-gray-700 leading-5">{search.suggestion.reason}</p>
-              {/* Said plainly, because the box below is already ticked and an
-                  operator should know a model ticked it. */}
-              <span className="text-[10px] text-gray-400">
-                제안일 뿐이며, 실행 가능 여부는 솔버가 판정합니다
-              </span>
+            <div className="border-l-2 border-korail-blue/40 pl-2.5 flex flex-col gap-1">
+              <span className="text-[11px] text-korail-blue">제안</span>
+              <p className="text-[13px] text-ink-2 leading-5">{search.suggestion.reason}</p>
             </div>
           )}
 
           <fieldset className="flex flex-col gap-1">
-            <legend className="text-[11px] text-gray-400 mb-1">시도할 변경</legend>
+            <legend className="text-[13px] text-ink-3 mb-1">시도할 변경</legend>
             {search.adjustments.map((adjustment) => (
-              <label key={adjustment} className="flex items-center gap-2 text-[11px] text-gray-600">
+              <label key={adjustment} className="flex items-center gap-2 text-[13px] text-ink-2">
                 <input
                   type="checkbox"
                   name="adjustments"
@@ -174,25 +174,15 @@ export function OrderPanel({
             ))}
           </fieldset>
 
-          <button
-            type="submit"
-            className="w-full h-9 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
-          >
+          <button type="submit" className="btn btn-primary w-full">
             {search.label}
           </button>
         </form>
       ) : (
-        blockedLabel && (
-          <span className="h-9 rounded-full bg-gray-100 text-gray-400 text-sm font-medium flex items-center justify-center">
-            {blockedLabel}
-          </span>
-        )
+        blockedLabel && <span className="btn btn-disabled w-full">{blockedLabel}</span>
       )}
 
-      <Link
-        href={editHref}
-        className="h-9 rounded-full border border-gray-300 text-gray-700 text-sm font-medium flex items-center justify-center hover:border-korail-blue hover:text-korail-blue"
-      >
+      <Link href={editHref} className="btn w-full">
         값 수정
       </Link>
     </aside>

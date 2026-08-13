@@ -64,31 +64,24 @@ export default function ErrorBoundary({
   const { title, advice } = diagnose(error.message ?? "");
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <Header />
-      <main className="max-w-[860px] mx-auto px-6 py-12 flex flex-col gap-5">
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+    <div className="min-h-screen bg-canvas font-sans">
+      <Header width="narrow" />
+      <main className="max-w-[860px] mx-auto px-6 py-12 flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold text-ink">{title}</h1>
 
-        <p className="text-sm text-gray-500 leading-7">{advice}</p>
+        <p className="text-sm text-ink-2 leading-6">{advice}</p>
 
         <Alert type="error">
-          <code className="text-xs font-mono break-all">
+          <code className="text-[13px] font-mono break-all">
             {error.message || "서버에서 자세한 내용을 반환하지 않았습니다."}
           </code>
         </Alert>
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={reset}
-            className="h-10 px-5 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
-          >
+        <div className="flex gap-2">
+          <button type="button" onClick={reset} className="btn btn-primary">
             다시 시도
           </button>
-          <Link
-            href="/"
-            className="h-10 px-5 rounded-full border border-gray-300 text-sm font-semibold text-gray-600 flex items-center hover:bg-gray-100"
-          >
+          <Link href="/" className="btn">
             시나리오 목록
           </Link>
         </div>
@@ -97,7 +90,7 @@ export default function ErrorBoundary({
             only handle onto the server log line -- but out of the way, since it
             is for whoever reads that log and not for whoever hit the error. */}
         {error.digest && (
-          <p className="text-[11px] text-gray-300 font-mono">digest {error.digest}</p>
+          <p className="text-[13px] text-ink-3 font-mono">digest {error.digest}</p>
         )}
       </main>
     </div>
