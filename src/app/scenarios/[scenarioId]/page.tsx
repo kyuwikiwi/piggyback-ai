@@ -1,13 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import {
   createAlternative,
   getExplanation,
   getRun,
   getScenario,
+  listScenarios,
   validateScenario,
 } from "@/lib/api";
-import type { OrderOutcome } from "@/lib/api";
+import type { OrderOutcome, Run } from "@/lib/api";
 import {
   Alert,
   CheckItem,
@@ -28,7 +30,7 @@ import type {
   TimelineTone,
   TrayEntry,
 } from "@/components/ui";
-import { buildAlternativeView, describeChange } from "@/lib/view/alternatives";
+import { buildAlternativeChecks, describeChange, planDeltas } from "@/lib/view/alternatives";
 import { constraintComparison, type ComparableOutcome } from "@/lib/view/constraints";
 import { formatTime } from "@/lib/view/format";
 import { isTimeReason, reasonLabel } from "@/lib/view/reasons";
@@ -50,9 +52,10 @@ export const dynamic = "force-dynamic";
  * it cost two identical `POST /validate` calls per walkthrough. The blocks below
  * are stacked in the order the work happens, so scrolling is the flow.
  *
- * `?order=` opens the detail beside the plan; `?alt=` runs a permitted
- * adjustment and draws the derived plan underneath. Both stay in the URL, so a
- * view is still shareable and reloadable.
+ * The run comes from the scenario when the URL does not name one, so every link
+ * into a scenario is just `/scenarios/{id}` -- a list row, a parent, a derived
+ * plan. `?order=` opens the detail beside it; searching for an alternative is a
+ * POST, because it stores a new scenario and a new run.
  */
 
 interface OrderRow {
@@ -62,10 +65,12 @@ interface OrderRow {
   /** Null until a run exists -- there is no assignment to report yet. */
   assignmentState: OrderOutcome["assignment_state"] | null;
   alternativeState: OrderOutcome["alternative_state"] | null;
+  alternativeScenarioId: string | null;
   primaryReasonCode: string | null;
   displayLabel: string | null;
   displayBadges: readonly string[];
   detail: string | null;
+  eligibleSlotCount: number | null;
   comparable: ComparableOutcome | null;
 }
 
@@ -74,49 +79,47 @@ export default async function ScenarioDashboard({
   searchParams,
 }: {
   params: Promise<{ scenarioId: string }>;
-  searchParams: Promise<{ run?: string; order?: string; alt?: string }>;
+  searchParams: Promise<{ run?: string; order?: string; altmiss?: string; altreason?: string }>;
 }) {
   const { scenarioId } = await params;
-  const { run: runId, order: selectedOrderId, alt: altOrderId } = await searchParams;
+  const {
+    run: runParam,
+    order: selectedOrderId,
+    altmiss: alternativeMissFor,
+    altreason: alternativeMissReason,
+  } = await searchParams;
 
   const scenario = await getScenario(scenarioId);
+  const runId = runParam ?? scenario.latest_run_id ?? null;
 
   // Validation is a POST because it recomputes and stores, but it is
   // deterministic over an immutable snapshot, so running it on each visit
   // returns the same answer. Once per visit -- the two screens this replaced
   // each made their own call.
-  const [validation, run, explanation] = await Promise.all([
+  const [validation, run, explanation, siblings] = await Promise.all([
     validateScenario(scenarioId),
     runId ? getRun(runId) : Promise.resolve(null),
     runId ? getExplanation(runId) : Promise.resolve(null),
+    listScenarios(100),
   ]);
 
   const idx = indexSnapshot(scenario.input_snapshot);
   const { snapshot } = idx;
 
-  // The search runs only when an order is named in `?alt=`; landing here does
-  // nothing. Asking without an approval window would be a 409, so the button
-  // that would send it is never offered.
-  const altOrder = altOrderId ? idx.orderById.get(altOrderId) : undefined;
-  const altAdjustments = permittedAdjustments(altOrder);
-  const altOutcome =
-    runId && altOrderId && altAdjustments.length
-      ? await createAlternative(runId, altOrderId, altAdjustments)
-      : null;
+  const parentId = scenario.parent_scenario_id ?? null;
+  const derived = siblings.filter((s) => s.parent_scenario_id === scenarioId);
+
+  // A derived plan is only meaningful against the one it came from, and the
+  // parent's own run is where the comparison has to come from -- the response
+  // that created this scenario is long gone by the time someone opens the link.
+  const parent = parentId ? siblings.find((s) => s.scenario_id === parentId) ?? null : null;
+  const parentRun: Run | null =
+    parent?.latest_run_id ? await getRun(parent.latest_run_id) : null;
+  const deltas = parentRun && run ? planDeltas(parentRun, run) : [];
 
   const validationByOrder = new Map(validation.orders.map((o) => [o.order_id, o]));
   const outcomeByOrder = new Map((run?.order_outcomes ?? []).map((o) => [o.order_id, o]));
   const cardByOrder = new Map((explanation?.cards ?? []).map((c) => [c.order_id, c]));
-
-  // A found alternative updates the baseline order's axes -- it now has a
-  // derived scenario that can carry it. Without folding that back in, the panel
-  // would sit next to a found alternative still saying NOT_SEARCHED.
-  if (altOutcome?.found) {
-    outcomeByOrder.set(
-      altOutcome.baseline_order_update.order_id,
-      altOutcome.baseline_order_update,
-    );
-  }
 
   // Driven by the snapshot's own order list so nothing can silently drop out of
   // the picture, whichever verdict source is available.
@@ -134,6 +137,7 @@ export default async function ScenarioDashboard({
         outcome?.eligibility_state ?? validated?.eligibility_state ?? "NOT_EVALUATED",
       assignmentState: outcome?.assignment_state ?? null,
       alternativeState: outcome?.alternative_state ?? null,
+      alternativeScenarioId: outcome?.alternative_scenario_id ?? null,
       primaryReasonCode,
       displayLabel: card?.display_label ?? outcome?.display_label ?? null,
       // Badges are additive by contract, and the explanation was fetched before
@@ -146,6 +150,7 @@ export default async function ScenarioDashboard({
         card?.detail ??
         (outcome?.next_actions.length ? outcome.next_actions.join(" ") : null) ??
         reasonLabel(primaryReasonCode),
+      eligibleSlotCount: validated?.eligible_slot_ids.length ?? null,
       comparable: outcome ?? (primaryReasonCode ? { primary_reason_code: primaryReasonCode } : null),
     };
   });
@@ -180,13 +185,35 @@ export default async function ScenarioDashboard({
     .filter((slot) => slot.available).length;
 
   const base = `/scenarios/${encodeURIComponent(scenarioId)}`;
-  const runQuery = runId ? `run=${encodeURIComponent(runId)}` : "";
-  const withParams = (extra: Record<string, string | undefined>) => {
-    const parts = [runQuery, ...Object.entries(extra)
-      .filter(([, v]) => v)
-      .map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`)].filter(Boolean);
-    return parts.length ? `${base}?${parts.join("&")}` : base;
-  };
+  const withOrder = (orderId?: string) =>
+    orderId ? `${base}?order=${encodeURIComponent(orderId)}` : base;
+
+  /**
+   * Search the approved alternatives for one order.
+   *
+   * A form, not a link. It stores a derived scenario and a derived run, and
+   * putting that behind a URL meant every refresh of that URL created another
+   * one -- a prefetch could start a solve nobody asked for. On success the
+   * derived scenario is a scenario like any other, so the redirect just opens
+   * it; the plan and its lineage are drawn by this same page.
+   */
+  async function searchAlternative(formData: FormData) {
+    "use server";
+
+    const orderId = String(formData.get("order_id") ?? "");
+    const forRunId = String(formData.get("run_id") ?? "");
+    const adjustments = String(formData.get("adjustments") ?? "").split(",").filter(Boolean);
+
+    const outcome = await createAlternative(forRunId, orderId, adjustments);
+
+    // Outside any try/catch: redirect signals by throwing.
+    redirect(
+      outcome.found
+        ? `/scenarios/${encodeURIComponent(outcome.alternative_scenario_id)}`
+        : `${base}?order=${encodeURIComponent(orderId)}&altmiss=${encodeURIComponent(orderId)}` +
+            `&altreason=${encodeURIComponent(outcome.reason_code)}`,
+    );
+  }
 
   const toneOf = (row: OrderRow): TimelineTone => {
     if (row.inputState === "REVIEW_REQUIRED") return "review";
@@ -236,7 +263,7 @@ export default async function ScenarioDashboard({
         row.primaryReasonCode === "CAPACITY_CONFLICT" && order
           ? `${order.priority_class} · 슬롯 ${assigned.length}/${capacity} 사용 중`
           : row.detail,
-      detailHref: withParams({ order: row.orderId }),
+      detailHref: withOrder(row.orderId),
       selected: row.orderId === selectedOrderId,
     };
   }
@@ -244,45 +271,95 @@ export default async function ScenarioDashboard({
   const selected = rows.find((r) => r.orderId === selectedOrderId) ?? null;
   const selectedOrder = selected ? idx.orderById.get(selected.orderId) : undefined;
   const selectedAdjustments = permittedAdjustments(selectedOrder);
-
-  const [altScenario, altRun] = await Promise.all([
-    altOutcome?.found ? getScenario(altOutcome.alternative_scenario_id) : Promise.resolve(null),
-    altOutcome?.found ? getRun(altOutcome.alternative_run_id) : Promise.resolve(null),
-  ]);
-  const altView =
-    altOutcome?.found && altScenario
-      ? buildAlternativeView(altOutcome, altScenario.input_snapshot)
-      : null;
-  const altIdx = altScenario ? indexSnapshot(altScenario.input_snapshot) : null;
+  const movedOrderId = deltas.find((d) => d.after !== null)?.orderId ?? null;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <header className="bg-white border-b border-gray-200">
         <Header />
-        <div className="max-w-[1180px] mx-auto px-6 py-5 flex flex-wrap items-center gap-3">
-          <code className="text-lg font-bold font-mono text-gray-900">
-            {scenario.scenario_id}
-          </code>
-          <StatusBadge label={scenario.state} size="sm" />
-          {run && <StatusBadge label={run.solver_status} size="sm" />}
-          {run && (
-            <>
-              <span className="text-xs text-gray-400">검증</span>
-              <StatusBadge label={run.validator_status} size="sm" />
-            </>
-          )}
-          <SourceBadge type={snapshot.assumptions[0]?.source_type ?? "DEMO_ASSUMPTION"} />
-          <span className="text-xs text-gray-400">
-            정책 {snapshot.policy.policy_id} · v{scenario.policy_version}
-          </span>
-
-          {runId && (
-            <Link
-              href={`${base}/runs/${encodeURIComponent(runId)}/decisions`}
-              className="ml-auto h-9 px-4 rounded-full bg-korail-blue text-white text-sm font-semibold flex items-center hover:bg-[#004080]"
-            >
-              결정 기록 →
+        <div className="max-w-[1180px] mx-auto px-6 py-5 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">
+              시나리오
             </Link>
+            <span className="text-gray-300">/</span>
+            <code className="text-lg font-bold font-mono text-gray-900">
+              {scenario.scenario_id}
+            </code>
+            <StatusBadge label={scenario.state} size="sm" />
+            {run && <StatusBadge label={run.solver_status} size="sm" />}
+            {run && (
+              <>
+                <span className="text-xs text-gray-400">검증</span>
+                <StatusBadge label={run.validator_status} size="sm" />
+              </>
+            )}
+            <SourceBadge type={snapshot.assumptions[0]?.source_type ?? "DEMO_ASSUMPTION"} />
+            <span className="text-xs text-gray-400">
+              정책 {snapshot.policy.policy_id} · v{scenario.policy_version}
+            </span>
+
+            <span className="ml-auto flex items-center gap-2">
+              <Link
+                href={`${base}/orders/new`}
+                className="h-9 px-4 rounded-full border border-gray-300 text-sm font-medium text-gray-700 flex items-center hover:border-korail-blue hover:text-korail-blue"
+              >
+                주문 추가
+              </Link>
+              {runId && (
+                <Link
+                  href={`${base}/runs/${encodeURIComponent(runId)}/decisions`}
+                  className="h-9 px-4 rounded-full bg-korail-blue text-white text-sm font-semibold flex items-center hover:bg-[#004080]"
+                >
+                  결정 기록 →
+                </Link>
+              )}
+            </span>
+          </div>
+
+          {(parentId || derived.length > 0) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              {parentId && (
+                <>
+                  <Link
+                    href={`/scenarios/${encodeURIComponent(parentId)}`}
+                    className="text-korail-blue hover:underline font-mono"
+                  >
+                    ← {parentId}
+                  </Link>
+                  <span>에서 파생</span>
+                  {scenario.change_set.length > 0 ? (
+                    scenario.change_set.map((change, i) => (
+                      <span key={i} className="text-gray-900">
+                        {describeChange(change).text}
+                      </span>
+                    ))
+                  ) : parent && parent.order_count !== snapshot.orders.length ? (
+                    // An approved adjustment names itself; a snapshot assembled
+                    // by the order form does not, so say what actually differs.
+                    <span className="text-gray-900">
+                      주문 {snapshot.orders.length - parent.order_count > 0 ? "+" : ""}
+                      {snapshot.orders.length - parent.order_count}
+                    </span>
+                  ) : null}
+                </>
+              )}
+              {derived.length > 0 && (
+                <span className="flex flex-wrap items-center gap-2">
+                  {parentId && <span className="text-gray-300">|</span>}
+                  <span>파생 {derived.length}건</span>
+                  {derived.map((child) => (
+                    <Link
+                      key={child.scenario_id}
+                      href={`/scenarios/${encodeURIComponent(child.scenario_id)}`}
+                      className="font-mono text-korail-blue hover:underline"
+                    >
+                      {child.scenario_id}
+                    </Link>
+                  ))}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </header>
@@ -305,6 +382,21 @@ export default async function ScenarioDashboard({
             </>
           )}
         </div>
+
+        {alternativeMissFor && (
+          <Alert type="warning">
+            <strong className="text-gray-900">
+              {alternativeMissFor} — 허용 범위 안에 실행 가능한 대안이 없습니다.
+            </strong>
+            {alternativeMissReason && (
+              <>
+                <br />
+                사유 <code className="font-mono text-xs">{alternativeMissReason}</code> —{" "}
+                {reasonLabel(alternativeMissReason)}
+              </>
+            )}
+          </Alert>
+        )}
 
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
           <span className="text-xs text-gray-400">① 입력</span>
@@ -343,7 +435,7 @@ export default async function ScenarioDashboard({
         </Section>
 
         <Section
-          title={run ? "③ 기본 편성" : "③ 편성 전"}
+          title={run ? "③ 편성" : "③ 편성 전"}
           accent="green"
           headerRight={
             run ? (
@@ -379,7 +471,7 @@ export default async function ScenarioDashboard({
                       idx={idx}
                       serviceId={serviceId}
                       assignments={run?.assignments ?? []}
-                      highlightOrderId={selectedOrderId ?? null}
+                      highlightOrderId={selectedOrderId ?? movedOrderId}
                     />
                   </div>
                 );
@@ -434,141 +526,117 @@ export default async function ScenarioDashboard({
                       value: selected.alternativeState ?? "—",
                       tone: selected.alternativeState === "AVAILABLE" ? "ok" : "muted",
                     },
+                    {
+                      label: "후보 슬롯",
+                      value: selected.eligibleSlotCount === null ? "—" : `${selected.eligibleSlotCount}개`,
+                      tone: selected.eligibleSlotCount ? "ok" : "muted",
+                    },
                   ] satisfies PanelAxis[]
                 }
                 comparison={constraintComparison(idx, selected.comparable, selectedOrder)}
                 note={selected.detail}
                 sourceType={snapshot.assumptions[0]?.source_type ?? "DEMO_ASSUMPTION"}
-                closeHref={withParams({})}
-                action={
+                closeHref={base}
+                // A found alternative already has a scenario; linking to it beats
+                // running the search again and storing a second identical one.
+                existingAlternativeHref={
+                  selected.alternativeScenarioId
+                    ? `/scenarios/${encodeURIComponent(selected.alternativeScenarioId)}`
+                    : null
+                }
+                search={
+                  runId &&
+                  selected.assignmentState !== "ASSIGNED" &&
+                  selected.inputState === "VALID" &&
+                  selectedAdjustments.length > 0
+                    ? {
+                        action: searchAlternative,
+                        runId,
+                        adjustments: selectedAdjustments,
+                        label: "대안 검토",
+                      }
+                    : null
+                }
+                blockedLabel={
                   selected.assignmentState === "ASSIGNED" || selected.inputState !== "VALID"
                     ? null
-                    : selectedAdjustments.length
-                      ? { label: "대안 검토", href: withParams({ order: selected.orderId, alt: selected.orderId }) }
-                      : { label: "승인된 변경 없음" }
+                    : "승인된 변경 없음"
                 }
               />
             )}
           </div>
         </Section>
 
-        {altOutcome?.found === false && (
-          <Section title={`④ ${altOutcome.order_id} 대안 검토`} accent="amber">
-            <Alert type="warning">
-              <strong className="text-gray-900">
-                허용 범위 안에 실행 가능한 대안이 없습니다.
-              </strong>
-              <br />
-              사유 <code className="font-mono text-xs">{altOutcome.reason_code}</code> —{" "}
-              {reasonLabel(altOutcome.reason_code)}
-              {altOutcome.change_set.length > 0 && (
-                <>
-                  <br />
-                  시도한 변경:{" "}
-                  {altOutcome.change_set.map((c) => describeChange(c).text).join(", ")}
-                </>
-              )}
-            </Alert>
-          </Section>
-        )}
-
-        {altOutcome?.found === true && altView && altIdx && (
+        {parentId && run && (
           <Section
-            title={`④ ${altView.orderId} 대안`}
+            title="④ 기본안 대비"
             accent="purple"
             headerRight={
-              <div className="flex items-center gap-2">
-                <code className="text-xs font-mono text-gray-400">
-                  {altOutcome.alternative_run_id}
-                </code>
-                <span className="text-xs text-gray-400">검증</span>
-                <StatusBadge label={altView.validatorStatus} size="sm" />
-              </div>
+              <span className="text-xs text-gray-400">
+                <code className="font-mono">{parentId}</code>의 편성과 비교
+              </span>
             }
           >
             <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                {altOutcome.change_set.map((change, i) => {
-                  const described = describeChange(change);
-                  return (
-                    <span key={i} className="flex items-center gap-2">
-                      <span className="text-gray-900">{described.text}</span>
-                      <code className="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-500">
-                        {described.code}
-                      </code>
-                    </span>
-                  );
-                })}
-              </div>
-
-              {altView.serviceId && altRun && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap items-baseline gap-2 text-sm">
-                    <code className="font-mono font-bold text-gray-900">{altView.serviceId}</code>
-                    <span className="text-gray-500">
-                      반입 마감{" "}
-                      <span className="text-gray-900">{formatTime(altView.cutoffAt)}</span> · 출발{" "}
-                      {formatTime(altView.departureAt)} · 도착 {formatTime(altView.arrivalAt)}
-                      {altView.destinationName && ` · 도착지 ${altView.destinationName}`}
-                    </span>
-                  </div>
-                  <WagonDiagram
-                    idx={altIdx}
-                    serviceId={altView.serviceId}
-                    assignments={altRun.assignments}
-                    highlightOrderId={altView.orderId}
-                  />
+              {deltas.length === 0 ? (
+                <p className="text-sm text-gray-500">배정이 달라진 주문이 없습니다.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
+                        <th className="py-2 pr-3 font-medium">주문</th>
+                        <th className="py-2 pr-3 font-medium">기본안</th>
+                        <th className="py-2 font-medium">이 시나리오</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deltas.map((delta) => (
+                        <tr key={delta.orderId} className="border-b border-gray-100">
+                          <td className="py-2.5 pr-3">
+                            <code className="font-mono font-medium text-gray-900">
+                              {delta.orderId}
+                            </code>
+                          </td>
+                          <td className="py-2.5 pr-3 text-gray-500">
+                            {delta.before
+                              ? `${delta.before.service_id} · ${delta.before.slot_id}`
+                              : "미배정"}
+                          </td>
+                          <td className="py-2.5 text-gray-500">
+                            {delta.after
+                              ? `${delta.after.service_id} · ${delta.after.slot_id}`
+                              : "미배정"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
-              <div className="flex flex-col gap-2">
-                {altView.checks.map((check) => (
-                  <CheckItem
-                    key={check.label}
-                    icon={check.icon}
-                    label={check.label}
-                    detail={check.detail}
-                    status={check.status}
-                  />
-                ))}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
-                      <th className="py-2 pr-3 font-medium">주문</th>
-                      <th className="py-2 pr-3 font-medium">기본안</th>
-                      <th className="py-2 font-medium">대안</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {altOutcome.assignment_deltas.map((delta) => (
-                      <tr key={delta.order_id} className="border-b border-gray-100">
-                        <td className="py-2.5 pr-3">
-                          <code className="font-mono font-medium text-gray-900">
-                            {delta.order_id}
-                          </code>
-                        </td>
-                        <td className="py-2.5 pr-3 text-gray-500">
-                          {delta.before_assignment
-                            ? `${delta.before_assignment.service_id} · ${delta.before_assignment.slot_id}`
-                            : "미배정"}
-                        </td>
-                        <td className="py-2.5 text-gray-500">
-                          {delta.after_assignment
-                            ? `${delta.after_assignment.service_id} · ${delta.after_assignment.slot_id}`
-                            : "미배정"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {movedOrderId && (
+                <div className="flex flex-col gap-2">
+                  {buildAlternativeChecks(
+                    snapshot,
+                    movedOrderId,
+                    run.assignments.find((a) => a.order_id === movedOrderId) ?? null,
+                    run.validator_status,
+                  ).map((check) => (
+                    <CheckItem
+                      key={check.label}
+                      icon={check.icon}
+                      label={check.label}
+                      detail={check.detail}
+                      status={check.status}
+                    />
+                  ))}
+                </div>
+              )}
 
               <p className="text-xs text-gray-400">
-                파생 시나리오 <code className="font-mono">{altOutcome.alternative_scenario_id}</code>
-                에서 다시 계산했습니다. 기본안은 그대로 남습니다.
+                이 시나리오는 파생본이며, <code className="font-mono">{parentId}</code>는 그대로
+                남아 있습니다.
               </p>
             </div>
           </Section>

@@ -11,7 +11,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List stored scenarios, newest first
+         * @description Without this a scenario is reachable only by an id the caller kept from the response that created it, so closing the tab loses work the store still holds. The snapshot is omitted; only order_count survives from it.
+         */
+        get: operations["listScenarios"];
         put?: never;
         post: operations["createScenario"];
         delete?: never;
@@ -222,6 +226,8 @@ export interface components {
             input_snapshot: components["schemas"]["ScenarioInputSnapshot"];
             policy_version: string;
             assumption_ids?: string[];
+            /** @description A caller-declared derivation, for snapshots this service does not build itself -- the same scenario with one more order has the same lineage as an alternative and no other way to say so. A label for reading; nothing resolves it. */
+            parent_scenario_id?: string | null;
         };
         Scenario: {
             scenario_id: string;
@@ -239,6 +245,21 @@ export interface components {
             policy_version: string;
             assumption_ids: string[];
             input_snapshot: components["schemas"]["ScenarioInputSnapshot"];
+            /** @description The scenario this one was derived from. Null when created directly. */
+            parent_scenario_id?: string | null;
+            /** @description What the derivation changed. Empty on a scenario created directly. */
+            change_set: components["schemas"]["ChangeSetEntry"][];
+            /** @description The scenario's most recent run, so a link into a scenario does not have to carry a run id beside it. Null before it is solved. */
+            latest_run_id?: string | null;
+        };
+        /** @description One row of listScenarios. Without the snapshot on purpose -- twenty rows would otherwise carry twenty full input documents. */
+        ScenarioSummary: components["schemas"]["Scenario"] & {
+            scenario_name: string;
+            parent_scenario_id?: string | null;
+            change_set: components["schemas"]["ChangeSetEntry"][];
+            order_count: number;
+            /** @description Null while the scenario has been created but never solved. */
+            latest_run_id?: string | null;
         };
         ScenarioInputSnapshot: {
             /** @constant */
@@ -697,6 +718,28 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listScenarios: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stored scenarios */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioSummary"][];
+                };
+            };
+        };
+    };
     createScenario: {
         parameters: {
             query?: never;

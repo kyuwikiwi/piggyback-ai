@@ -9,6 +9,21 @@ import { reasonLabel } from "@/lib/view/reasons";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The five things the service records against a scenario.
+ *
+ * Shown as a list rather than counted. "추적 이벤트 12건" is a claim about an
+ * audit trail; the trail itself is the evidence, and it was already in the
+ * bundle this page fetches.
+ */
+const TRACE_LABEL: Record<string, string> = {
+  SCENARIO_CREATED: "시나리오 생성",
+  VALIDATION_COMPLETED: "입력 검증 완료",
+  RUN_COMPLETED: "편성 실행 완료",
+  ALTERNATIVE_CREATED: "대안 검토",
+  DECISION_RECORDED: "결정 기록",
+};
+
 const AXIS_TONE: Record<string, string> = {
   VALID: "text-emerald-600",
   REVIEW_REQUIRED: "text-amber-600",
@@ -68,15 +83,28 @@ export default async function DecisionsPage({
         <Header />
         <div className="max-w-[1060px] mx-auto px-6 py-5">
           <Link
-            href={`/scenarios/${encodeURIComponent(scenarioId)}?run=${encodeURIComponent(runId)}`}
+            href={`/scenarios/${encodeURIComponent(scenarioId)}`}
             className="text-sm text-korail-blue hover:underline"
           >
             ← 편성 대시보드
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">결정 기록</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            운영자가 이 실행을 채택·보류·반려하고, 근거와 함께 남깁니다
-          </p>
+          <div className="flex flex-wrap items-end justify-between gap-3 mt-2">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">결정 기록</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                운영자가 이 실행을 채택·보류·반려하고, 근거와 함께 남깁니다
+              </p>
+            </div>
+            {/* A plain link, not fetch-and-blob: the browser saves the bytes the
+                service sent, which is what a verification bundle has to be. */}
+            <a
+              href={`/scenarios/${encodeURIComponent(scenarioId)}/runs/${encodeURIComponent(runId)}/export`}
+              download
+              className="h-9 px-4 rounded-full border border-gray-300 text-sm font-medium text-gray-700 flex items-center hover:border-korail-blue hover:text-korail-blue"
+            >
+              검증 번들 내려받기
+            </a>
+          </div>
         </div>
       </header>
 
@@ -246,6 +274,37 @@ export default async function DecisionsPage({
           )}
         </Section>
 
+        <Section
+          title="추적 로그"
+          accent="cyan"
+          headerRight={
+            <span className="text-xs text-gray-400">{bundle.trace_events.length}건</span>
+          }
+        >
+          {bundle.trace_events.length === 0 ? (
+            <p className="text-sm text-gray-500">기록된 이벤트가 없습니다.</p>
+          ) : (
+            <ol className="flex flex-col gap-2">
+              {bundle.trace_events.map((event) => (
+                <li
+                  key={event.event_id}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-2 border-gray-200 pl-3 py-0.5"
+                >
+                  <span className="text-sm font-medium text-gray-900">
+                    {TRACE_LABEL[event.event_type] ?? event.event_type}
+                  </span>
+                  <code className="text-[11px] font-mono text-gray-400">
+                    {event.event_type}
+                  </code>
+                  <span className="ml-auto text-xs text-gray-400">
+                    {formatDateTime(event.occurred_at)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Section>
+
         <Section title="재현성" accent="muted">
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <div className="flex justify-between gap-3">
@@ -268,8 +327,8 @@ export default async function DecisionsPage({
               </dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-gray-500">추적 이벤트</dt>
-              <dd className="font-mono text-gray-900">{bundle.trace_events.length}건</dd>
+              <dt className="text-gray-500">실행</dt>
+              <dd className="font-mono text-gray-900">{runId}</dd>
             </div>
             <div className="md:col-span-2 flex flex-col gap-1 pt-2 border-t border-gray-100">
               <div className="flex justify-between gap-3">

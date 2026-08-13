@@ -20,6 +20,7 @@ export type AiStatus = JsonBody<paths["/v1/ai/status"]["get"]["responses"][200]>
 // ─── 시나리오 ───
 export type Scenario = Schemas["Scenario"];
 export type ScenarioDetail = Schemas["ScenarioDetail"];
+export type ScenarioSummary = Schemas["ScenarioSummary"];
 export type ScenarioCreateRequest = Schemas["ScenarioCreateRequest"];
 export type ScenarioInputSnapshot = Schemas["ScenarioInputSnapshot"];
 
@@ -73,6 +74,7 @@ export type TraceEvent = Schemas["TraceEvent"];
 export type ExplanationResult = Schemas["ExplanationResult"];
 export type ExplanationCard = Schemas["ExplanationCard"];
 export type IntakeResult = Schemas["IntakeResult"];
+export type OrderDraft = Schemas["OrderDraft"];
 
 // ─── 오류 ───
 export type ApiErrorBody = Schemas["Error"];

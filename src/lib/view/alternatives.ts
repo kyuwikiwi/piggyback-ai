@@ -11,9 +11,9 @@
  * whose inputs are missing is dropped rather than shown as passing: the screen
  * may show less than it used to, but never more than it knows.
  */
-import type { AlternativeResult, ScenarioInputSnapshot } from "@/lib/api";
+import type { Assignment, ChangeSetEntry, Run, ScenarioInputSnapshot } from "@/lib/api";
 import { formatMm, formatTime, formatTonnes } from "./format";
-import { indexSnapshot, routeLimitsOfService, terminalName } from "./snapshot";
+import { indexSnapshot, routeLimitsOfService } from "./snapshot";
 
 export interface AlternativeCheck {
   icon: string;
@@ -22,33 +22,27 @@ export interface AlternativeCheck {
   status: "pass" | "warn" | "fail";
 }
 
-export interface AlternativeView {
-  orderId: string;
-  serviceId: string | null;
-  slotId: string | null;
-  departureAt: string | null;
-  arrivalAt: string | null;
-  cutoffAt: string | null;
-  destinationName: string | null;
-  checks: AlternativeCheck[];
-  impactedOrderIds: string[];
-  validatorStatus: AlternativeResult["validator_status"];
-}
-
 function verdict(ok: boolean): "pass" | "fail" {
   return ok ? "pass" : "fail";
 }
 
-export function buildAlternativeView(
-  result: AlternativeResult,
+/**
+ * Why the order this plan moved is carried safely.
+ *
+ * Takes the pieces rather than an alternative response: the same evidence is
+ * worth showing on a derived scenario opened from a link days later, when the
+ * `POST` that created it is long gone and all that survives is the stored
+ * snapshot and run.
+ */
+export function buildAlternativeChecks(
   alternativeSnapshot: ScenarioInputSnapshot,
-): AlternativeView {
+  orderId: string,
+  after: Assignment | null,
+  validatorStatus: "PASS" | "FAIL",
+): AlternativeCheck[] {
   const idx = indexSnapshot(alternativeSnapshot);
-  const orderId = result.alternative_run_order_outcome.order_id;
   const order = idx.orderById.get(orderId);
 
-  const delta = result.assignment_deltas.find((d) => d.order_id === orderId);
-  const after = delta?.after_assignment ?? null;
   const service = after ? idx.serviceById.get(after.service_id) : undefined;
   const slot = after ? idx.slotById.get(after.slot_id) : undefined;
   const destination = service ? idx.terminalById.get(service.destination_terminal_id) : undefined;
@@ -118,32 +112,51 @@ export function buildAlternativeView(
 
   checks.push({
     icon: "🔍",
-    label: result.validator_status === "PASS" ? "독립 검증 통과" : "독립 검증 실패",
+    label: validatorStatus === "PASS" ? "독립 검증 통과" : "독립 검증 실패",
     detail:
-      result.validator_status === "PASS"
+      validatorStatus === "PASS"
         ? "솔버와 별개의 재검산에서 위반이 없습니다"
         : "재검산이 위반을 보고했습니다",
-    status: verdict(result.validator_status === "PASS"),
+    status: verdict(validatorStatus === "PASS"),
   });
 
-  return {
-    orderId,
-    serviceId: after?.service_id ?? null,
-    slotId: after?.slot_id ?? null,
-    departureAt: service?.departure_at ?? null,
-    arrivalAt: service?.arrival_at ?? null,
-    cutoffAt: service?.planning_cutoff_at ?? null,
-    destinationName: service ? terminalName(idx, service.destination_terminal_id) : null,
-    checks,
-    impactedOrderIds: result.impacted_order_ids,
-    validatorStatus: result.validator_status,
-  };
+  return checks;
+}
+
+export interface PlanDelta {
+  orderId: string;
+  before: Assignment | null;
+  after: Assignment | null;
+}
+
+/**
+ * What changed between two plans.
+ *
+ * The alternative response carries its own `assignment_deltas`, but only for
+ * the request that produced it. Comparing two stored runs works for any pair --
+ * a derived scenario opened from a link, or later two scenarios side by side --
+ * and both sides are still the service's own assignments. Nothing is judged
+ * here; rows that did not move are dropped so the table shows the change.
+ */
+export function planDeltas(before: Run | null, after: Run | null): PlanDelta[] {
+  const beforeBy = new Map((before?.assignments ?? []).map((a) => [a.order_id, a]));
+  const afterBy = new Map((after?.assignments ?? []).map((a) => [a.order_id, a]));
+
+  return [...new Set([...beforeBy.keys(), ...afterBy.keys()])]
+    .sort()
+    .map((orderId) => ({
+      orderId,
+      before: beforeBy.get(orderId) ?? null,
+      after: afterBy.get(orderId) ?? null,
+    }))
+    .filter(
+      ({ before: b, after: a }) =>
+        b?.service_id !== a?.service_id || b?.slot_id !== a?.slot_id,
+    );
 }
 
 /** Human wording for one approved change. */
-export function describeChange(
-  change: AlternativeResult["change_set"][number],
-): { code: string; text: string } {
+export function describeChange(change: ChangeSetEntry): { code: string; text: string } {
   if (change.type === "ADD_ORDER_APPROVED_SERVICE") {
     return { code: change.type, text: `승인된 운행 ${change.service_id} 추가` };
   }
