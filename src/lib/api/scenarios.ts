@@ -2,7 +2,7 @@ import "server-only";
 
 import canonicalScenario from "@/data/canonical-v1/scenario.json";
 
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPost, apiRequest } from "./client";
 import type {
   Run,
   Scenario,
@@ -82,6 +82,34 @@ export async function validateScenario(scenarioId: string): Promise<ValidationRe
   return apiPost<ValidationResult>(
     `/v1/scenarios/${encodeURIComponent(scenarioId)}/validate`,
   );
+}
+
+/**
+ * The validation a scenario already has, or null if it has none yet.
+ *
+ * Screens read; they do not validate. `POST /validate` records a
+ * VALIDATION_COMPLETED event, so a dashboard that validated on every render
+ * wrote a line into the audit trail for every visit and the trail stopped
+ * describing what anyone did.
+ *
+ * A 422 means the scenario was created and never validated -- a real state the
+ * screen answers with a button, not an error.
+ */
+export async function readValidation(scenarioId: string): Promise<ValidationResult | null> {
+  const { status, data } = await apiRequest<ValidationResult>({
+    method: "GET",
+    path: `/v1/scenarios/${encodeURIComponent(scenarioId)}/validation`,
+    expect: [200, 422],
+  });
+  return status === 200 ? data : null;
+}
+
+export async function deleteScenario(scenarioId: string): Promise<void> {
+  await apiRequest<null>({
+    method: "DELETE",
+    path: `/v1/scenarios/${encodeURIComponent(scenarioId)}`,
+    expect: [204],
+  });
 }
 
 export async function createRun(

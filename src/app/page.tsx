@@ -9,7 +9,6 @@ import {
   validateScenario,
   CANONICAL_SOLVER_PARAMETERS,
 } from "@/lib/api";
-import type { ScenarioSummary } from "@/lib/api";
 import { Alert, Header, StatusBadge } from "@/components/ui";
 import { describeChange } from "@/lib/view/alternatives";
 import { formatRelative } from "@/lib/view/format";
@@ -49,21 +48,9 @@ async function startScenario() {
   redirect(`/scenarios/${encodeURIComponent(scenario.scenario_id)}`);
 }
 
-/** "주문 +1" when the parent is on the same page and the counts differ. */
-function describeOrderDelta(
-  scenario: ScenarioSummary,
-  parent: ScenarioSummary | undefined,
-): string {
-  if (!parent) return "";
-  const difference = scenario.order_count - parent.order_count;
-  if (difference === 0) return "";
-  return ` · 주문 ${difference > 0 ? "+" : ""}${difference}`;
-}
-
 export default async function LandingPage() {
   const backend = await probeBackend();
   const scenarios = backend.reachable ? await listScenarios(20) : [];
-  const byId = new Map(scenarios.map((s) => [s.scenario_id, s]));
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -113,7 +100,14 @@ export default async function LandingPage() {
             <section className="flex flex-col gap-3">
               <div className="flex items-baseline justify-between">
                 <h2 className="text-base font-bold text-gray-900">저장된 시나리오</h2>
-                <span className="text-xs text-gray-400">{scenarios.length}건 · 최신순</span>
+                <span className="flex items-baseline gap-3">
+                  {scenarios.length > 1 && (
+                    <Link href="/compare" className="text-xs text-korail-blue hover:underline">
+                      두 개 비교 →
+                    </Link>
+                  )}
+                  <span className="text-xs text-gray-400">{scenarios.length}건 · 최신순</span>
+                </span>
               </div>
 
               {scenarios.length === 0 ? (
@@ -139,11 +133,13 @@ export default async function LandingPage() {
                             <code className="font-mono">{scenario.parent_scenario_id}</code>에서
                             파생
                             {/* An approved adjustment names itself. A snapshot
-                                assembled here does not, so the order count says
-                                what changed instead of leaving the row bare. */}
+                                assembled by one of the derive screens says what
+                                it did in its name -- correcting a value changes
+                                neither the order count nor the baseline, so
+                                nothing else on the row could tell them apart. */}
                             {scenario.change_set.length > 0
                               ? ` · ${scenario.change_set.map((c) => describeChange(c).text).join(", ")}`
-                              : describeOrderDelta(scenario, byId.get(scenario.parent_scenario_id))}
+                              : ` · ${scenario.scenario_name}`}
                           </span>
                         )}
 
@@ -152,6 +148,13 @@ export default async function LandingPage() {
                             it has a plan to show. */}
                         {!scenario.latest_run_id && (
                           <span className="text-xs text-amber-600">편성 전</span>
+                        )}
+
+                        {/* Which of these are settled is the first thing you
+                            want on coming back, and it was the one thing the
+                            row could not say. */}
+                        {scenario.decision_state && (
+                          <StatusBadge label={scenario.decision_state} size="sm" />
                         )}
 
                         <span className="ml-auto text-xs text-gray-400">

@@ -2,11 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
+  CANONICAL_SOLVER_PARAMETERS,
   createAlternative,
+  createRun,
+  createScenario,
+  deleteScenario,
   getExplanation,
   getRun,
   getScenario,
   listScenarios,
+  readValidation,
   validateScenario,
 } from "@/lib/api";
 import type { OrderOutcome, Run } from "@/lib/api";
@@ -92,12 +97,13 @@ export default async function ScenarioDashboard({
   const scenario = await getScenario(scenarioId);
   const runId = runParam ?? scenario.latest_run_id ?? null;
 
-  // Validation is a POST because it recomputes and stores, but it is
-  // deterministic over an immutable snapshot, so running it on each visit
-  // returns the same answer. Once per visit -- the two screens this replaced
-  // each made their own call.
+  // Read, never validate. `POST /validate` records a VALIDATION_COMPLETED
+  // event, so a screen that validated on every render wrote a line into the
+  // audit trail for every visit and the trail stopped describing what anyone
+  // did. Null means the scenario was created and never validated -- a real
+  // state this page answers with a button.
   const [validation, run, explanation, siblings] = await Promise.all([
-    validateScenario(scenarioId),
+    readValidation(scenarioId),
     runId ? getRun(runId) : Promise.resolve(null),
     runId ? getExplanation(runId) : Promise.resolve(null),
     listScenarios(100),
@@ -117,7 +123,7 @@ export default async function ScenarioDashboard({
     parent?.latest_run_id ? await getRun(parent.latest_run_id) : null;
   const deltas = parentRun && run ? planDeltas(parentRun, run) : [];
 
-  const validationByOrder = new Map(validation.orders.map((o) => [o.order_id, o]));
+  const validationByOrder = new Map((validation?.orders ?? []).map((o) => [o.order_id, o]));
   const outcomeByOrder = new Map((run?.order_outcomes ?? []).map((o) => [o.order_id, o]));
   const cardByOrder = new Map((explanation?.cards ?? []).map((c) => [c.order_id, c]));
 
@@ -189,6 +195,74 @@ export default async function ScenarioDashboard({
     orderId ? `${base}?order=${encodeURIComponent(orderId)}` : base;
 
   /**
+   * Validate if needed, then solve.
+   *
+   * A scenario created and never solved had nothing on this page to solve it
+   * with: the list showed it as `편성 전` and the link led to a dashboard whose
+   * only action was adding another order. The solver parameters come from the
+   * form so the reproducibility settings are visible and adjustable rather than
+   * a constant nobody can see -- the service refuses anything but one worker,
+   * which is worth being able to find out.
+   */
+  async function solve(formData: FormData) {
+    "use server";
+
+    if (!validation) await validateScenario(scenarioId);
+
+    await createRun(scenarioId, {
+      random_seed: Number(formData.get("random_seed") ?? CANONICAL_SOLVER_PARAMETERS.random_seed),
+      // Pinned by the contract, and typed as the literal 1, so it is shown
+      // beside the form rather than offered as a field. A screen that could
+      // send 2 would only be able to demonstrate the service refusing it.
+      num_search_workers: CANONICAL_SOLVER_PARAMETERS.num_search_workers,
+      max_time_seconds: Number(
+        formData.get("max_time_seconds") ?? CANONICAL_SOLVER_PARAMETERS.max_time_seconds,
+      ),
+    });
+
+    // Outside any try/catch: redirect signals by throwing.
+    redirect(base);
+  }
+
+  /**
+   * Solve the same orders against a different set of baseline services.
+   *
+   * `baseline_service_ids` belongs to the scenario, not the run, so widening
+   * the candidate set is a new snapshot rather than another solve -- which is
+   * right: it is a different question, and the answer to the old one stays
+   * where it was. Until now the only way to reach another service was one order
+   * at a time through the alternative engine.
+   */
+  async function rebaseline(formData: FormData) {
+    "use server";
+
+    const chosen = formData.getAll("service_ids").map(String).filter(Boolean);
+    if (chosen.length === 0) redirect(base);
+
+    const created = await createScenario({
+      scenario_name: `기준 운행 ${chosen.join(", ")}`,
+      as_of: scenario.as_of,
+      baseline_service_ids: chosen,
+      policy_version: scenario.policy_version,
+      assumption_ids: [...scenario.assumption_ids],
+      input_snapshot: { ...snapshot, baseline_service_ids: chosen },
+      parent_scenario_id: scenario.scenario_id,
+    });
+
+    await validateScenario(created.scenario_id);
+    await createRun(created.scenario_id);
+
+    redirect(`/scenarios/${encodeURIComponent(created.scenario_id)}`);
+  }
+
+  async function removeScenario() {
+    "use server";
+
+    await deleteScenario(scenarioId);
+    redirect("/");
+  }
+
+  /**
    * Search the approved alternatives for one order.
    *
    * A form, not a link. It stores a derived scenario and a derived run, and
@@ -202,9 +276,12 @@ export default async function ScenarioDashboard({
 
     const orderId = String(formData.get("order_id") ?? "");
     const forRunId = String(formData.get("run_id") ?? "");
-    const adjustments = String(formData.get("adjustments") ?? "").split(",").filter(Boolean);
+    // Checkboxes, so the operator can ask about one approved change at a time.
+    const adjustments = formData.getAll("adjustments").map(String).filter(Boolean);
+    if (adjustments.length === 0) redirect(withOrder(orderId));
 
     const outcome = await createAlternative(forRunId, orderId, adjustments);
+
 
     // Outside any try/catch: redirect signals by throwing.
     redirect(
@@ -300,6 +377,19 @@ export default async function ScenarioDashboard({
             </span>
 
             <span className="ml-auto flex items-center gap-2">
+              {/* Refused by the service while anything was derived from this
+                  scenario, so the button is hidden rather than offered and
+                  rejected. */}
+              {derived.length === 0 && (
+                <form action={removeScenario}>
+                  <button
+                    type="submit"
+                    className="h-9 px-3 rounded-full border border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-600"
+                  >
+                    삭제
+                  </button>
+                </form>
+              )}
               <Link
                 href={`${base}/orders/new`}
                 className="h-9 px-4 rounded-full border border-gray-300 text-sm font-medium text-gray-700 flex items-center hover:border-korail-blue hover:text-korail-blue"
@@ -365,22 +455,33 @@ export default async function ScenarioDashboard({
       </header>
 
       <main className="max-w-[1180px] mx-auto px-6 py-8 flex flex-col gap-5">
-        <div className="flex flex-wrap gap-4">
-          {run ? (
-            <>
-              <StatCard value={assigned.length} label="배정" color="green" />
-              <StatCard value={waiting.length} label="대기" color="amber" />
-              <StatCard value={ineligible.length} label="불가" color="red" />
-              <StatCard value={review.length} label="확인 필요" color="muted" />
-            </>
-          ) : (
-            <>
-              <StatCard value={rows.length} label="전체 주문" color="default" />
-              <StatCard value={pending.length} label="적합" color="green" />
-              <StatCard value={ineligible.length} label="부적합" color="red" />
-              <StatCard value={review.length} label="확인 필요" color="muted" />
-            </>
-          )}
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-4">
+            {run ? (
+              <>
+                <StatCard value={assigned.length} label="배정" color="green" />
+                <StatCard value={waiting.length} label="대기" color="amber" />
+                <StatCard value={ineligible.length} label="불가" color="red" />
+                <StatCard value={review.length} label="확인 필요" color="muted" />
+              </>
+            ) : (
+              <>
+                <StatCard value={rows.length} label="전체 주문" color="default" />
+                <StatCard value={pending.length} label="적합" color="green" />
+                <StatCard value={ineligible.length} label="부적합" color="red" />
+                <StatCard value={review.length} label="확인 필요" color="muted" />
+              </>
+            )}
+          </div>
+          {/* Four numbers that add up to something the reader should not have to
+              add up. */}
+          <p className="text-xs text-gray-400">
+            주문 {rows.length}건 · 기준 운행{" "}
+            <code className="font-mono">
+              {snapshot.baseline_service_ids.join(", ")}
+            </code>{" "}
+            · 가용 슬롯 {capacity}개
+          </p>
         </div>
 
         {alternativeMissFor && (
@@ -400,7 +501,9 @@ export default async function ScenarioDashboard({
 
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
           <span className="text-xs text-gray-400">① 입력</span>
-          {review.length === 0 ? (
+          {!validation ? (
+            <span className="text-gray-500">아직 검증하지 않았습니다</span>
+          ) : review.length === 0 ? (
             <span className="text-gray-500">주문 {rows.length}건 모두 유효</span>
           ) : (
             review.map((row) => {
@@ -434,16 +537,63 @@ export default async function ScenarioDashboard({
           <Timeline rows={timelineRows} markers={timelineMarkers} />
         </Section>
 
+        {!run && (
+          <Section title="③ 편성" accent="green" headerRight={<span className="text-xs text-gray-400">아직 실행되지 않았습니다</span>}>
+            <form action={solve} className="flex flex-col gap-4">
+              <p className="text-sm text-gray-500">
+                {validation
+                  ? "검증은 끝났습니다. 편성을 실행하세요."
+                  : "입력을 검증한 뒤 편성을 실행합니다."}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-xl">
+                {(
+                  [
+                    ["random_seed", "seed", CANONICAL_SOLVER_PARAMETERS.random_seed, 0],
+                    ["max_time_seconds", "제한 (초)", CANONICAL_SOLVER_PARAMETERS.max_time_seconds, 1],
+                  ] as const
+                ).map(([name, label, value, min]) => (
+                  <label key={name} className="flex flex-col gap-1.5 text-sm">
+                    <span className="text-gray-500">{label}</span>
+                    <input
+                      type="number"
+                      name={name}
+                      min={min}
+                      defaultValue={value}
+                      className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
+                    />
+                  </label>
+                ))}
+                <div className="flex flex-col gap-1.5 text-sm">
+                  <span className="text-gray-500">worker</span>
+                  <div className="h-10 rounded-lg bg-gray-100 px-3 flex items-center font-mono text-gray-500">
+                    {CANONICAL_SOLVER_PARAMETERS.num_search_workers}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="self-start h-11 px-6 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
+              >
+                편성 실행
+              </button>
+
+              <p className="text-xs text-gray-400">
+                재현성은 이 세 값에 걸려 있습니다. worker는 계약이 1로 고정합니다 — 그 이상이면
+                동점 처리와 해시가 달라져 같은 입력이 같은 결과를 내지 않습니다. seed와 시간
+                제한을 바꾸면 결과 해시도 달라지므로, 정본 기대값과 대조하려면 기본값으로
+                실행하세요.
+              </p>
+            </form>
+          </Section>
+        )}
+
+        {run && (
         <Section
-          title={run ? "③ 편성" : "③ 편성 전"}
+          title="③ 편성"
           accent="green"
-          headerRight={
-            run ? (
-              <code className="text-xs font-mono text-gray-400">{run.run_id}</code>
-            ) : (
-              <span className="text-xs text-gray-400">아직 실행되지 않았습니다</span>
-            )
-          }
+          headerRight={<code className="text-xs font-mono text-gray-400">{run.run_id}</code>}
         >
           <div
             className={`grid gap-5 ${selected ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px]" : "grid-cols-1"}`}
@@ -537,6 +687,7 @@ export default async function ScenarioDashboard({
                 note={selected.detail}
                 sourceType={snapshot.assumptions[0]?.source_type ?? "DEMO_ASSUMPTION"}
                 closeHref={base}
+                editHref={`${base}/orders/${encodeURIComponent(selected.orderId)}/edit`}
                 // A found alternative already has a scenario; linking to it beats
                 // running the search again and storing a second identical one.
                 existingAlternativeHref={
@@ -566,6 +717,48 @@ export default async function ScenarioDashboard({
             )}
           </div>
         </Section>
+        )}
+
+        {run && snapshot.services.length > snapshot.baseline_service_ids.length && (
+          <Section title="기준 운행 바꿔 다시 편성" accent="cyan">
+            <form action={rebaseline} className="flex flex-col gap-4">
+              <p className="text-sm text-gray-500">
+                후보에 넣을 운행을 고르면 같은 주문들로 새 시나리오를 편성합니다. 대안 엔진은
+                주문 하나씩 다루지만, 이건 열차 단위 질문입니다.
+              </p>
+
+              <div className="flex flex-col gap-2">
+                {snapshot.services.map((service) => (
+                  <label key={service.service_id} className="flex flex-wrap items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="service_ids"
+                      value={service.service_id}
+                      defaultChecked={snapshot.baseline_service_ids.includes(service.service_id)}
+                      className="accent-korail-blue"
+                    />
+                    <code className="font-mono font-medium text-gray-900">
+                      {service.service_id}
+                    </code>
+                    <span className="text-gray-500">
+                      {terminalName(idx, service.origin_terminal_id)} →{" "}
+                      {terminalName(idx, service.destination_terminal_id)} · 반입 마감{" "}
+                      {formatTime(service.planning_cutoff_at)} · 도착{" "}
+                      {formatTime(service.arrival_at)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                className="self-start h-10 px-5 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:border-korail-blue hover:text-korail-blue"
+              >
+                이 운행들로 새 시나리오 편성
+              </button>
+            </form>
+          </Section>
+        )}
 
         {parentId && run && (
           <Section

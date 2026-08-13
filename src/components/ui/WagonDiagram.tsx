@@ -37,6 +37,56 @@ function layout(slots: readonly Slot[]): Band[] {
   });
 }
 
+function SlotCard({
+  idx,
+  slot,
+  assignment,
+  highlightOrderId,
+  stacked = false,
+}: {
+  idx: SnapshotIndex;
+  slot: Slot;
+  assignment: Assignment | undefined;
+  highlightOrderId: string | null;
+  stacked?: boolean;
+}) {
+  const order = assignment ? idx.orderById.get(assignment.order_id) : undefined;
+  const highlighted = highlightOrderId !== null && assignment?.order_id === highlightOrderId;
+
+  return (
+    <div
+      className={`rounded-md border ${
+        stacked
+          ? "flex items-center gap-2 px-3 py-2"
+          : "h-full flex flex-col items-center justify-center"
+      } ${
+        assignment
+          ? highlighted
+            ? "border-korail-blue bg-blue-50"
+            : "border-emerald-300 bg-emerald-50"
+          : slot.available
+            ? "border-dashed border-gray-300 bg-white"
+            : "border-gray-200 bg-gray-100"
+      }`}
+    >
+      <code className="text-[10px] font-mono text-gray-400">{slot.slot_id}</code>
+      {assignment ? (
+        <>
+          <span className="text-sm font-bold text-gray-900 leading-5">{assignment.order_id}</span>
+          <span className="text-[11px] text-gray-500">
+            {formatTonnes(order?.gross_weight_kg)}
+            {order && ` · ${order.priority_class}`}
+          </span>
+        </>
+      ) : (
+        <span className={`text-xs text-gray-400 ${stacked ? "" : "mt-1"}`}>
+          {slot.available ? "비어 있음" : "사용 불가"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function WagonDiagram({
   idx,
   serviceId,
@@ -73,54 +123,42 @@ export function WagonDiagram({
             </div>
 
             <div className="rounded-lg border border-gray-300 bg-gray-50 p-1.5">
-              <div className="relative h-[74px]">
-                {layout(slots).map(({ slot, left, width }) => {
-                  const assignment = assignmentBySlot.get(slot.slot_id);
-                  const order = assignment ? idx.orderById.get(assignment.order_id) : undefined;
-                  const highlighted =
-                    highlightOrderId !== null && assignment?.order_id === highlightOrderId;
+              {/* Below sm the coordinates stop helping: three slots across a
+                  325px card leave 76px each, which is narrower than the id
+                  printed on them. Stacked, every slot stays readable and the
+                  order down the list is still the order along the wagon. */}
+              <div className="flex flex-col gap-1.5 sm:hidden">
+                {layout(slots).map(({ slot }) => (
+                  <SlotCard
+                    key={slot.slot_id}
+                    idx={idx}
+                    slot={slot}
+                    assignment={assignmentBySlot.get(slot.slot_id)}
+                    highlightOrderId={highlightOrderId}
+                    stacked
+                  />
+                ))}
+              </div>
 
-                  return (
-                    <div
-                      key={slot.slot_id}
-                      style={{ left: `${left}%`, width: `${width}%` }}
-                      className="absolute inset-y-0 px-[3px]"
-                    >
-                      <div
-                        className={`h-full rounded-md border flex flex-col items-center justify-center ${
-                          assignment
-                            ? highlighted
-                              ? "border-korail-blue bg-blue-50"
-                              : "border-emerald-300 bg-emerald-50"
-                            : slot.available
-                              ? "border-dashed border-gray-300 bg-white"
-                              : "border-gray-200 bg-gray-100"
-                        }`}
-                      >
-                        <code className="text-[10px] font-mono text-gray-400">{slot.slot_id}</code>
-                        {assignment ? (
-                          <>
-                            <span className="text-sm font-bold text-gray-900 leading-5">
-                              {assignment.order_id}
-                            </span>
-                            <span className="text-[11px] text-gray-500">
-                              {formatTonnes(order?.gross_weight_kg)}
-                              {order && ` · ${order.priority_class}`}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-xs text-gray-400 mt-1">
-                            {slot.available ? "비어 있음" : "사용 불가"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="relative h-[74px] hidden sm:block">
+                {layout(slots).map(({ slot, left, width }) => (
+                  <div
+                    key={slot.slot_id}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                    className="absolute inset-y-0 px-[3px]"
+                  >
+                    <SlotCard
+                      idx={idx}
+                      slot={slot}
+                      assignment={assignmentBySlot.get(slot.slot_id)}
+                      highlightOrderId={highlightOrderId}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="flex justify-between px-[12%] -mt-px" aria-hidden="true">
+            <div className="hidden sm:flex justify-between px-[12%] -mt-px" aria-hidden="true">
               {[0, 1].map((bogie) => (
                 <div key={bogie} className="flex gap-1">
                   <div className="w-2.5 h-2.5 rounded-full border border-gray-300 bg-gray-200" />

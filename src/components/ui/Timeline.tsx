@@ -8,10 +8,13 @@ import { formatTime } from "@/lib/view/format";
  * 사람이 두 칸을 찾아 빼야 한다. 축 위에 올려두면 뺄 필요가 없다.
  *
  * 판정은 하지 않는다. 막대의 색은 서비스가 준 상태축을 그대로 옮긴 것이고, 시간이
- * 원인이 아닌 탈락은 `aside`로 그렇게 밝힌다.
+ * 원인이 아닌 탈락은 그렇게 밝힌다.
+ *
+ * 좁은 화면에서는 축 위에 떠 있던 마커 라벨과 막대 옆 주석을 축 밖으로 내린다.
+ * 375px에서 트랙은 250px 남짓인데 `반입 마감 10:30` 하나가 60px라, 세 개가 서로
+ * 겹치고 카드 밖으로 밀려났다. 선은 그대로 두고 값만 옮긴다.
  */
 
-const LABEL_WIDTH = 74;
 const HOUR = 3_600_000;
 
 const barTone = {
@@ -50,6 +53,10 @@ export interface TimelineMarker {
   hard?: boolean;
 }
 
+/** Label column and the overlay that has to start where the track does. */
+const LABEL_COLUMN = "grid-cols-[54px_minmax(0,1fr)] sm:grid-cols-[74px_minmax(0,1fr)]";
+const TRACK_INSET = "left-[54px] sm:left-[74px]";
+
 export function Timeline({
   rows,
   markers,
@@ -81,14 +88,22 @@ export function Timeline({
   const ticks: number[] = [];
   for (let t = firstTick; t <= end; t += step) ticks.push(t);
 
+  const asides = rows.filter((row) => row.aside);
+
   return (
     <div>
-      <div className="relative">
-        <div
-          className="absolute inset-y-0 right-0 pointer-events-none"
-          style={{ left: LABEL_WIDTH }}
-          aria-hidden="true"
-        >
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3 text-[11px] sm:hidden">
+        {markers.map((marker) => (
+          <span key={marker.label} className={marker.hard ? "text-red-600" : "text-gray-500"}>
+            {marker.label} {formatTime(marker.at)}
+          </span>
+        ))}
+      </div>
+
+      {/* Nothing may escape the card: the asides and the rightmost marker label
+          both sit outside the track by design. */}
+      <div className="relative overflow-hidden">
+        <div className={`absolute inset-y-0 right-0 pointer-events-none ${TRACK_INSET}`} aria-hidden="true">
           {markers.map((marker) => {
             const at = pct(Date.parse(marker.at));
             // A label pinned near the right edge would run off the track.
@@ -96,12 +111,12 @@ export function Timeline({
             return (
               <div key={marker.label} className="absolute inset-y-0" style={{ left: `${at}%` }}>
                 <div
-                  className={`absolute top-[18px] bottom-0 w-px ${
+                  className={`absolute top-0 sm:top-[18px] bottom-0 w-px ${
                     marker.hard ? "bg-red-300" : "bg-gray-300"
                   }`}
                 />
                 <div
-                  className={`absolute top-0 text-[11px] whitespace-nowrap ${
+                  className={`hidden sm:block absolute top-0 text-[11px] whitespace-nowrap ${
                     marker.hard ? "text-red-600" : "text-gray-500"
                   }`}
                   style={flip ? { right: 4 } : { left: 4 }}
@@ -113,12 +128,9 @@ export function Timeline({
           })}
         </div>
 
-        <div className="h-[22px]" />
+        <div className="h-0 sm:h-[22px]" />
 
-        <div
-          className="grid gap-y-1.5 items-center"
-          style={{ gridTemplateColumns: `${LABEL_WIDTH}px minmax(0, 1fr)` }}
-        >
+        <div className={`grid gap-y-1.5 items-center ${LABEL_COLUMN}`}>
           {rows.map((row) => {
             const from = pct(Date.parse(row.readyAt));
             const to = pct(Date.parse(row.dueAt));
@@ -135,7 +147,7 @@ export function Timeline({
                   />
                   {row.aside && (
                     <span
-                      className="absolute top-0 text-[11px] text-gray-400 whitespace-nowrap"
+                      className="hidden sm:inline absolute top-0 text-[11px] text-gray-400 whitespace-nowrap"
                       style={to > 82 ? { right: 0, top: -14 } : { left: `calc(${to}% + 6px)` }}
                     >
                       {row.aside}
@@ -148,10 +160,7 @@ export function Timeline({
         </div>
       </div>
 
-      <div
-        className="grid mt-2"
-        style={{ gridTemplateColumns: `${LABEL_WIDTH}px minmax(0, 1fr)` }}
-      >
+      <div className={`grid mt-2 ${LABEL_COLUMN}`}>
         <span />
         <div className="relative h-4">
           {ticks.map((tick) => (
@@ -165,6 +174,16 @@ export function Timeline({
           ))}
         </div>
       </div>
+
+      {asides.length > 0 && (
+        <div className="flex flex-col gap-0.5 mt-3 text-[11px] text-gray-400 sm:hidden">
+          {asides.map((row) => (
+            <span key={row.orderId}>
+              <code className="font-mono">{row.orderId}</code> {row.aside}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

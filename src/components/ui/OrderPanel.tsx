@@ -42,6 +42,7 @@ export function OrderPanel({
   existingAlternativeHref,
   search,
   blockedLabel,
+  editHref,
 }: {
   orderId: string;
   label: string | null;
@@ -65,6 +66,8 @@ export function OrderPanel({
   } | null;
   /** Shown when nothing may be adjusted, so the absence has a reason. */
   blockedLabel: string | null;
+  /** Where to correct this order's values, deriving a scenario from the fix. */
+  editHref: string;
 }) {
   return (
     <aside className="rounded-xl border border-gray-300 bg-white p-4 flex flex-col gap-3">
@@ -119,10 +122,31 @@ export function OrderPanel({
           대안 시나리오 열기 →
         </Link>
       ) : search ? (
-        <form action={search.action}>
+        <form action={search.action} className="flex flex-col gap-2">
           <input type="hidden" name="order_id" value={orderId} />
           <input type="hidden" name="run_id" value={search.runId} />
-          <input type="hidden" name="adjustments" value={search.adjustments.join(",")} />
+
+          {/* One checkbox per approved change rather than sending them all.
+              An order approved for both a later service and a different
+              terminal was always asked about both at once, so the derived plan
+              could not say which one was actually needed -- and the two cost
+              very different conversations to arrange. */}
+          <fieldset className="flex flex-col gap-1">
+            <legend className="text-[11px] text-gray-400 mb-1">시도할 변경</legend>
+            {search.adjustments.map((adjustment) => (
+              <label key={adjustment} className="flex items-center gap-2 text-[11px] text-gray-600">
+                <input
+                  type="checkbox"
+                  name="adjustments"
+                  value={adjustment}
+                  defaultChecked
+                  className="accent-korail-blue"
+                />
+                <span className="font-mono">{adjustment}</span>
+              </label>
+            ))}
+          </fieldset>
+
           <button
             type="submit"
             className="w-full h-9 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
@@ -137,6 +161,13 @@ export function OrderPanel({
           </span>
         )
       )}
+
+      <Link
+        href={editHref}
+        className="h-9 rounded-full border border-gray-300 text-gray-700 text-sm font-medium flex items-center justify-center hover:border-korail-blue hover:text-korail-blue"
+      >
+        값 수정
+      </Link>
     </aside>
   );
 }

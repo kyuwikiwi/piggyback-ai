@@ -9,6 +9,7 @@ export { Header } from "./Header";
 export { ConstraintCompare } from "./ConstraintCompare";
 export { OrderPanel } from "./OrderPanel";
 export type { PanelAxis } from "./OrderPanel";
+export { OrderForm } from "./OrderForm";
 export { WagonDiagram } from "./WagonDiagram";
 export { OrderTray } from "./OrderTray";
 export type { TrayEntry, TrayTone } from "./OrderTray";
