@@ -6,8 +6,10 @@ import { apiGet, apiPost } from "./client";
 import type {
   Run,
   Scenario,
+  ScenarioCreateRequest,
   ScenarioDetail,
   ScenarioInputSnapshot,
+  ScenarioSummary,
   SolverParameters,
   ValidationResult,
 } from "./types";
@@ -52,6 +54,23 @@ export function canonicalCreateRequest() {
 
 export async function createCanonicalScenario(): Promise<Scenario> {
   return apiPost<Scenario>("/v1/scenarios", canonicalCreateRequest());
+}
+
+/**
+ * Create a scenario from a snapshot this app assembled.
+ *
+ * The canonical request is passed through untouched because its hash has to
+ * match the fixture. A scenario the operator built by adding an order is a
+ * different document with a different hash, which is the point: it is a new
+ * immutable snapshot, not an edit of the old one.
+ */
+export async function createScenario(request: ScenarioCreateRequest): Promise<Scenario> {
+  return apiPost<Scenario>("/v1/scenarios", request);
+}
+
+/** Stored scenarios, newest first. Without this a lost id is lost work. */
+export async function listScenarios(limit = 20): Promise<ScenarioSummary[]> {
+  return apiGet<ScenarioSummary[]>(`/v1/scenarios?limit=${limit}`);
 }
 
 /** The scenario plus the snapshot it was created from. */

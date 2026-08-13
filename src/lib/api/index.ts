@@ -5,9 +5,12 @@ export {
   canonicalCreateRequest,
   createCanonicalScenario,
   createRun,
+  createScenario,
   getScenario,
+  listScenarios,
   validateScenario,
 } from "./scenarios";
+export { structureOrder } from "./intake";
 export {
   createAlternative,
   getExplanation,

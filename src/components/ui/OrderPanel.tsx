@@ -39,7 +39,9 @@ export function OrderPanel({
   note,
   sourceType,
   closeHref,
-  action,
+  existingAlternativeHref,
+  search,
+  blockedLabel,
 }: {
   orderId: string;
   label: string | null;
@@ -49,7 +51,20 @@ export function OrderPanel({
   note: string | null;
   sourceType: Assumption["source_type"];
   closeHref: string;
-  action: { label: string; href?: string } | null;
+  /** The derived scenario this order already has, if one was found before. */
+  existingAlternativeHref: string | null;
+  /**
+   * Searching stores a derived scenario and a derived run, so it is a form
+   * rather than a link. Behind a URL, every refresh created another one.
+   */
+  search: {
+    action: (formData: FormData) => Promise<void>;
+    runId: string;
+    adjustments: readonly string[];
+    label: string;
+  } | null;
+  /** Shown when nothing may be adjusted, so the absence has a reason. */
+  blockedLabel: string | null;
 }) {
   return (
     <aside className="rounded-xl border border-gray-300 bg-white p-4 flex flex-col gap-3">
@@ -96,19 +111,32 @@ export function OrderPanel({
         <SourceBadge type={sourceType} />
       </div>
 
-      {action &&
-        (action.href ? (
-          <Link
-            href={action.href}
-            className="h-9 rounded-full bg-korail-blue text-white text-sm font-semibold flex items-center justify-center hover:bg-[#004080]"
+      {existingAlternativeHref ? (
+        <Link
+          href={existingAlternativeHref}
+          className="h-9 rounded-full bg-korail-blue text-white text-sm font-semibold flex items-center justify-center hover:bg-[#004080]"
+        >
+          대안 시나리오 열기 →
+        </Link>
+      ) : search ? (
+        <form action={search.action}>
+          <input type="hidden" name="order_id" value={orderId} />
+          <input type="hidden" name="run_id" value={search.runId} />
+          <input type="hidden" name="adjustments" value={search.adjustments.join(",")} />
+          <button
+            type="submit"
+            className="w-full h-9 rounded-full bg-korail-blue text-white text-sm font-semibold hover:bg-[#004080]"
           >
-            {action.label}
-          </Link>
-        ) : (
+            {search.label}
+          </button>
+        </form>
+      ) : (
+        blockedLabel && (
           <span className="h-9 rounded-full bg-gray-100 text-gray-400 text-sm font-medium flex items-center justify-center">
-            {action.label}
+            {blockedLabel}
           </span>
-        ))}
+        )
+      )}
     </aside>
   );
 }
