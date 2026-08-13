@@ -398,10 +398,10 @@ export interface components {
             /** @enum {string} */
             eligibility_state: "ELIGIBLE" | "INELIGIBLE" | "NOT_EVALUATED";
             reason_codes: string[];
-            missing_fields?: string[];
+            missing_fields: string[];
             eligible_slot_ids: string[];
             /** @description The single reason to show, chosen by the 02 §6.1 family priority. */
-            primary_reason_code?: string | null;
+            primary_reason_code: string | null;
         };
         Run: {
             run_id: string;
@@ -414,7 +414,7 @@ export interface components {
             /** @enum {string} */
             validator_status: "PASS" | "FAIL";
             /** @description Empty on PASS. On FAIL the UI must name the broken rule and the resource it broke on (08 §9), which a bare status cannot do. */
-            validator_findings?: components["schemas"]["ValidatorFinding"][];
+            validator_findings: components["schemas"]["ValidatorFinding"][];
             reproducibility: components["schemas"]["Reproducibility"];
             assignments: components["schemas"]["Assignment"][];
             order_outcomes: components["schemas"]["OrderOutcome"][];
@@ -455,16 +455,16 @@ export interface components {
             alternative_state: "AVAILABLE" | "NONE" | "NOT_SEARCHED";
             primary_reason_code: string;
             /** @description Reason-specific supporting values, keyed by whatever the primary reason needs (`eligible_slot_ids`, limit-versus-actual pairs). Open by design; read defensively. */
-            evidence?: {
+            evidence: {
                 [key: string]: unknown;
             };
-            next_actions?: string[];
+            next_actions: string[];
             /** @description Computed from the state axes by 02 §4. Never generated. */
-            display_label?: string | null;
+            display_label: string | null;
             /** @description Additive badges. `조건부 대안 있음` when alternative_state is AVAILABLE. */
-            display_badges?: string[];
+            display_badges: string[];
             /** @description Set on a baseline order once an alternative is found; the derived scenario that can carry it. This is the resource path the alternative-comparison screen navigates to. */
-            alternative_scenario_id?: string | null;
+            alternative_scenario_id: string | null;
         };
         AlternativeRequest: {
             order_id: string;
