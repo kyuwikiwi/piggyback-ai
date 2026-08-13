@@ -20,7 +20,7 @@ function baseUrl(): string {
 }
 
 export interface ApiRequest {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   path: string;
   body?: unknown;
   /** Statuses to hand back instead of throwing. Used for the 200/201 split on alternatives. */

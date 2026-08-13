@@ -6,8 +6,10 @@ export {
   createCanonicalScenario,
   createRun,
   createScenario,
+  deleteScenario,
   getScenario,
   listScenarios,
+  readValidation,
   validateScenario,
 } from "./scenarios";
 export { structureOrder } from "./intake";

@@ -38,6 +38,30 @@ export interface paths {
         get: operations["getScenario"];
         put?: never;
         post?: never;
+        /**
+         * Delete a scenario and everything recorded against it
+         * @description Removes the scenario, its runs, its decisions and its trace. Refused while anything was derived from it: a derived scenario records the id it came from, and deleting the parent would leave it pointing at nothing.
+         */
+        delete: operations["deleteScenario"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scenarios/{scenario_id}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the stored validation result
+         * @description validateScenario is a POST because it computes, stores and records a VALIDATION_COMPLETED event. A screen that shows candidate slots would otherwise append to the audit trail every time it rendered, and the trail would stop describing what anyone actually did.
+         */
+        get: operations["readValidation"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -260,6 +284,8 @@ export interface components {
             order_count: number;
             /** @description Null while the scenario has been created but never solved. */
             latest_run_id?: string | null;
+            /** @description The decision standing on that run, so a list can separate settled scenarios from open ones. Null when none was recorded. */
+            decision_state?: string | null;
         };
         ScenarioInputSnapshot: {
             /** @constant */
@@ -786,6 +812,52 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    deleteScenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scenario_id: components["parameters"]["ScenarioId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["PolicyViolation"];
+        };
+    };
+    readValidation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scenario_id: components["parameters"]["ScenarioId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stored validation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationResult"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationRequired"];
         };
     };
     validateScenario: {

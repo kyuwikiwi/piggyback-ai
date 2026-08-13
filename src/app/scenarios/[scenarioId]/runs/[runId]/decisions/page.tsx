@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
-import { getExplanation, getExportBundle, getRun, recordDecision } from "@/lib/api";
+import { getExplanation, getExportBundle, getRun, getScenario, recordDecision } from "@/lib/api";
 import type { ActorRole, DecisionState, SelectedPlan } from "@/lib/api";
 import { Alert, Header, Section, StatCard, StatusBadge } from "@/components/ui";
 import { formatDateTime } from "@/lib/view/format";
@@ -24,19 +24,40 @@ const TRACE_LABEL: Record<string, string> = {
   DECISION_RECORDED: "결정 기록",
 };
 
-const AXIS_TONE: Record<string, string> = {
-  VALID: "text-emerald-600",
-  REVIEW_REQUIRED: "text-amber-600",
-  ELIGIBLE: "text-emerald-600",
-  INELIGIBLE: "text-red-600",
-  NOT_EVALUATED: "text-gray-400",
-  ASSIGNED: "text-emerald-600",
-  UNASSIGNED: "text-amber-600",
-  NOT_APPLICABLE: "text-gray-400",
-  AVAILABLE: "text-blue-600",
-  NONE: "text-red-600",
-  NOT_SEARCHED: "text-gray-400",
+/**
+ * The axes in words, with the enum kept beside them.
+ *
+ * The five axes stay separate on purpose (02 §4), and showing them is how this
+ * screen proves it -- but `NOT_APPLICABLE` in a column headed 배정 is a schema
+ * dump sitting in the middle of an operator's decision. The reading comes
+ * first and the raw value stays underneath it, small, so the claim is still
+ * checkable against the export.
+ */
+const AXIS_READING: Record<string, { text: string; tone: string }> = {
+  VALID: { text: "유효", tone: "text-emerald-600" },
+  REVIEW_REQUIRED: { text: "확인 필요", tone: "text-amber-600" },
+  ELIGIBLE: { text: "적합", tone: "text-emerald-600" },
+  INELIGIBLE: { text: "부적합", tone: "text-red-600" },
+  NOT_EVALUATED: { text: "미평가", tone: "text-gray-400" },
+  ASSIGNED: { text: "배정됨", tone: "text-emerald-600" },
+  UNASSIGNED: { text: "미배정", tone: "text-amber-600" },
+  NOT_APPLICABLE: { text: "해당 없음", tone: "text-gray-400" },
+  AVAILABLE: { text: "있음", tone: "text-blue-600" },
+  NONE: { text: "없음", tone: "text-red-600" },
+  NOT_SEARCHED: { text: "미검토", tone: "text-gray-400" },
 };
+
+function Axis({ value }: { value: string }) {
+  const reading = AXIS_READING[value];
+  return (
+    <span className="flex flex-col leading-tight">
+      <span className={`text-sm ${reading?.tone ?? "text-gray-500"}`}>
+        {reading?.text ?? value}
+      </span>
+      <code className="text-[10px] font-mono text-gray-300">{value}</code>
+    </span>
+  );
+}
 
 export default async function DecisionsPage({
   params,
@@ -47,11 +68,17 @@ export default async function DecisionsPage({
 
   // The display label is computed by P4b, so it arrives on the explanation
   // cards rather than on the run's own order_outcomes, where it stays null.
-  const [run, bundle, explanation] = await Promise.all([
+  const [run, bundle, explanation, scenario] = await Promise.all([
     getRun(runId),
     getExportBundle(runId),
     getExplanation(runId),
+    getScenario(scenarioId),
   ]);
+  // A decision is recorded against one run. On a derived scenario that run is
+  // the alternative, so `기본안` would be the wrong word for what is being
+  // accepted -- the choice follows the lineage rather than asking the operator
+  // to remember which plan this page belongs to.
+  const isDerived = scenario.parent_scenario_id !== null;
   const labelByOrder = new Map(explanation.cards.map((c) => [c.order_id, c]));
 
   // 05 §5: only an OPTIMAL solve that the independent validator passed may be
@@ -145,17 +172,17 @@ export default async function DecisionsPage({
                     <td className="py-2.5 pr-3">
                       <code className="font-mono font-medium text-gray-900">{o.order_id}</code>
                     </td>
-                    <td className={`py-2.5 pr-3 font-mono text-xs ${AXIS_TONE[o.input_state] ?? ""}`}>
-                      {o.input_state}
+                    <td className="py-2.5 pr-3">
+                      <Axis value={o.input_state} />
                     </td>
-                    <td className={`py-2.5 pr-3 font-mono text-xs ${AXIS_TONE[o.eligibility_state] ?? ""}`}>
-                      {o.eligibility_state}
+                    <td className="py-2.5 pr-3">
+                      <Axis value={o.eligibility_state} />
                     </td>
-                    <td className={`py-2.5 pr-3 font-mono text-xs ${AXIS_TONE[o.assignment_state] ?? ""}`}>
-                      {o.assignment_state}
+                    <td className="py-2.5 pr-3">
+                      <Axis value={o.assignment_state} />
                     </td>
-                    <td className={`py-2.5 pr-3 font-mono text-xs ${AXIS_TONE[o.alternative_state] ?? ""}`}>
-                      {o.alternative_state}
+                    <td className="py-2.5 pr-3">
+                      <Axis value={o.alternative_state} />
                     </td>
                     <td className="py-2.5">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -216,7 +243,7 @@ export default async function DecisionsPage({
                 <span className="text-gray-500">선택한 안</span>
                 <select
                   name="selected_plan"
-                  defaultValue="BASELINE"
+                  defaultValue={isDerived ? "ALTERNATIVE" : "BASELINE"}
                   className="h-10 rounded-lg border border-gray-300 px-3 text-gray-900"
                 >
                   <option value="BASELINE">기본안</option>
