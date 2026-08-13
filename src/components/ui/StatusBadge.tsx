@@ -57,6 +57,8 @@ const labelIntent: Record<string, Intent> = {
   반려: "red",
 
   // 화면 자체 어휘
+  연결됨: "green",
+  "연결 안 됨": "red",
   "기준 운행": "blue",
   "대안 운행": "purple",
   유효: "green",
