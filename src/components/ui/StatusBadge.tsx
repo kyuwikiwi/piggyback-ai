@@ -23,6 +23,11 @@ const labelIntent: Record<string, Intent> = {
   "편성 가능": "green",
   "편성 가능·미배정": "cyan",
   "기본안 불가·대안 미검토": "amber",
+  // INELIGIBLE + AVAILABLE. Amber rather than red on purpose: the baseline
+  // cannot carry this order, but an approved change can, and the row already
+  // carries `조건부 대안 있음` beside it. Red here would say the opposite of
+  // the badge next to it.
+  "기본안 불가": "amber",
   불가: "red",
   "조건부 대안 있음": "purple",
 
