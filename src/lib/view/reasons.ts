@@ -50,6 +50,25 @@ export function reasonLabel(code: string | null | undefined): string | null {
   return REASON_LABELS[code] ?? code;
 }
 
+/**
+ * Codes a time axis can actually account for.
+ *
+ * The timeline draws every order, including the ones that failed on height or
+ * on a terminal's handling tags. Those bars look perfectly healthy against the
+ * cutoff and the arrival, because they are -- nothing about their cause is a
+ * time. Left unmarked, a viewer learns "red bar = late", which is wrong for half
+ * the canonical fixture. The screen marks them instead of quietly implying it.
+ */
+const TIME_REASON_CODES = new Set([
+  "READY_AFTER_CUTOFF",
+  "DUE_TIME_EXCEEDED",
+  "INVALID_TIME_RANGE",
+]);
+
+export function isTimeReason(code: string | null | undefined): boolean {
+  return code !== null && code !== undefined && TIME_REASON_CODES.has(code);
+}
+
 /** Whether a code is one this app has wording for. Used to warn in development. */
 export function isKnownReasonCode(code: string): boolean {
   return code in REASON_LABELS;
