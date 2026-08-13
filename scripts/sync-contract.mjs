@@ -15,7 +15,7 @@
 import { writeFile } from "node:fs/promises";
 import { argv, exit } from "node:process";
 
-const REPO = "xiuiworld/piggyon";
+const REPO = "xiuiworld/piggyon_back";
 const ref = argv[2] ?? "main";
 
 const FILES = [

@@ -407,9 +407,9 @@ export interface components {
             run_id: string;
             scenario_id: string;
             /** @enum {string} */
-            solver_status: "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "ERROR";
+            solver_status: "OPTIMAL" | "FEASIBLE" | "INFEASIBLE";
             /** @enum {string} */
-            run_state: "SOLVED_OPTIMAL" | "SOLVED_FEASIBLE" | "MODEL_INFEASIBLE" | "ERROR";
+            run_state: "SOLVED_OPTIMAL" | "SOLVED_FEASIBLE" | "MODEL_INFEASIBLE";
             is_optimal: boolean;
             /** @enum {string} */
             validator_status: "PASS" | "FAIL";
@@ -418,6 +418,10 @@ export interface components {
             reproducibility: components["schemas"]["Reproducibility"];
             assignments: components["schemas"]["Assignment"][];
             order_outcomes: components["schemas"]["OrderOutcome"][];
+            /** @description Value reached at each lexicographic stage. The only signal that separates a fully refined OPTIMAL plan from one whose time budget ran out mid-refinement. */
+            objective_values?: {
+                [key: string]: number;
+            };
         };
         ValidatorFinding: {
             check: string;
@@ -673,6 +677,15 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description The solver produced no plan */
+        SolverUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         ScenarioId: string;
@@ -782,6 +795,7 @@ export interface operations {
             400: components["responses"]["InvalidInput"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationRequired"];
+            503: components["responses"]["SolverUnavailable"];
         };
     };
     getRun: {
